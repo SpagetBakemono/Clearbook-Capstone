@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit account" if account else "Add account" }}{% endblock %}
+{% block content %}
+<h2>{{ "Edit account" if account else "Add account" }}</h2>
+<form class="form-card" method="post" action="{{ '/accounts/%d/edit'|format(account.id) if account else '/accounts' }}">
+  <div>
+    <label for="name">Name</label>
+    <input id="name" name="name" placeholder="e.g. Checking, Chase Sapphire" value="{{ account.name if account else '' }}" required />
+  </div>
+  <div>
+    <label for="type">Type</label>
+    <select id="type" name="type" required>
+      {% for t in account_types %}
+      <option value="{{ t.value }}" {{ "selected" if account and account.type.value == t.value else "" }}>{{ t.value.replace('_', ' ') }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="row">
+    <div>
+      <label for="opening_balance">
+        Opening balance
+        <span class="badge">for credit cards, enter what you currently owe</span>
+      </label>
+      <input id="opening_balance" name="opening_balance" type="number" step="0.01" value="{{ account.opening_balance if account else '0.00' }}" />
+    </div>
+    <div>
+      <label for="opening_balance_date">As of</label>
+      <input id="opening_balance_date" name="opening_balance_date" type="date" value="{{ account.opening_balance_date.isoformat() if account else today }}" required />
+    </div>
+  </div>
+  <button type="submit">{{ "Save changes" if account else "Add account" }}</button>
+</form>
+{% if account %}
+<p style="margin-top:12px;">
+  <a href="/accounts">&larr; Back to accounts</a> --
+  if the balance still doesn't match your statement, this opening balance
+  (or a transaction dated after {{ account.opening_balance_date.isoformat() }})
+  is the place to check.
+</p>
+{% endif %}
+{% endblock %}

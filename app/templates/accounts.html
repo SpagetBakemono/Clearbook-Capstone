@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Accounts{% endblock %}
+{% block content %}
+<h2>Accounts</h2>
+{% include "_sync_alerts.html" %}
+{% for note in balance_drift %}
+<p class="stat-sub" style="margin: 0 0 8px;">{{ note }}</p>
+{% endfor %}
+{% if balances %}
+<table>
+  <thead><tr><th>Name</th><th>Type</th><th>Opening balance</th><th>Balance</th><th>Bank sync</th><th></th></tr></thead>
+  <tbody>
+    {% for account, balance in balances %}
+    <tr>
+      <td>{{ account.name }}</td>
+      <td><span class="badge">{{ account.type.value.replace('_', ' ') }}</span></td>
+      <td>${{ "%.2f"|format(account.opening_balance) }} <span class="badge">{{ account.opening_balance_date.isoformat() }}</span></td>
+      <td class="{{ 'amount expense' if account.type.value == 'credit_card' and balance > 0 else '' }}">
+        {% if account.type.value == 'credit_card' %}
+          {{ "$%.2f owed"|format(balance) if balance > 0 else "$0.00" }}
+        {% else %}
+          ${{ "%.2f"|format(balance) }}
+        {% endif %}
+      </td>
+      <td>
+        {% if account.plaid_access_token %}
+          <span class="badge" style="color: var(--good); border-color: var(--good);">Connected via Plaid</span>
+          <form method="post" action="/accounts/{{ account.id }}/plaid/sync" style="margin:0;display:inline;">
+            <button type="submit" class="btn-sm btn-sm-accent">Sync now</button>
+          </form>
+          <form method="post" action="/accounts/{{ account.id }}/plaid/disconnect" style="margin:0;display:inline;"
+                onsubmit='return confirm({{ ("Disconnect " ~ account.name ~ " from Plaid? Transactions already imported stay put.")|tojson }});'>
+            <button type="submit" class="btn-sm btn-sm-outline">Disconnect</button>
+          </form>
+        {% elif account.type.value != 'cash' %}
+          <button type="button" class="btn-sm btn-sm-accent plaid-connect" data-account-id="{{ account.id }}">Connect with Plaid</button>
+        {% endif %}
+        <div class="plaid-status" data-account-id="{{ account.id }}" style="font-size:12px;margin-top:4px;"></div>
+      </td>
+      <td><a href="/accounts/{{ account.id }}/edit">Edit</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<script>
+function plaidStatus(accountId, text, isError) {
+  const el = document.querySelector(`.plaid-status[data-account-id="${accountId}"]`);
+  el.textContent = text;
+  el.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+}
+
+async function postJson(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+document.querySelectorAll('.plaid-connect').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const accountId = Number(btn.dataset.accountId);
+    btn.disabled = true;
+    plaidStatus(accountId, 'Opening Plaid...');
+    try {
+      const {link_token} = await postJson('/plaid/create-link-token');
+      Plaid.create({
+        token: link_token,
+        onSuccess: async (public_token, metadata) => {
+          plaidStatus(accountId, 'Linking...');
+          try {
+            // Only pass a selection when exactly one account was picked --
+            // the server refuses to guess if Link returned several.
+            const picked = metadata.accounts.length === 1 ? metadata.accounts[0].id : null;
+            await postJson('/plaid/exchange', {public_token, account_id: accountId, plaid_account_id: picked});
+            window.location.reload();
+          } catch (err) {
+            plaidStatus(accountId, err.message, true);
+            btn.disabled = false;
+          }
+        },
+        onExit: (err) => {
+          plaidStatus(accountId, err ? (err.display_message || err.error_message || 'Plaid closed with an error.') : '', !!err);
+          btn.disabled = false;
+        },
+      }).open();
+    } catch (err) {
+      plaidStatus(accountId, err.message, true);
+      btn.disabled = false;
+    }
+  });
+});
+</script>
+{% else %}
+<p class="empty">No accounts yet. Add your checking account, cash, and any credit cards to get started.</p>
+{% endif %}
+<p><a href="/accounts/new">+ Add account</a></p>
+{% endblock %}

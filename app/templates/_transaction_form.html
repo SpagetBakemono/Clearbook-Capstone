@@ -1,0 +1,100 @@
+{# Add/edit transaction form -- shared by the Manual page and the
+   edit / confirm-from-review page (transaction_new.html). #}
+{% if not accounts %}
+<p class="empty">You need at least one account first. <a href="/accounts/new">Add one</a>.</p>
+{% else %}
+<form class="form-card" method="post" action="{{ '/transactions/%d/edit'|format(txn.id) if txn else '/transactions' }}">
+  <div class="row">
+    <div>
+      <label for="type">Type</label>
+      <select id="type" name="type" required onchange="toggleFields()">
+        <option value="expense" {{ "selected" if (txn and txn.type.value == "expense") or (prefill and prefill.type == "expense") else "" }}>Expense</option>
+        <option value="income" {{ "selected" if (txn and txn.type.value == "income") or (prefill and prefill.type == "income") else "" }}>Income</option>
+        <option value="transfer" {{ "selected" if (txn and txn.type.value == "transfer") or (prefill and prefill.type == "transfer") else "" }}>Transfer (e.g. credit card payment)</option>
+      </select>
+    </div>
+    <div>
+      <label for="date">Date</label>
+      <input id="date" name="date" type="date" value="{{ txn.date.isoformat() if txn else (prefill.date if prefill else today) }}" required />
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label for="amount">Amount</label>
+      <input id="amount" name="amount" type="number" step="0.01" min="0.01" value="{{ txn.amount if txn else (prefill.amount if prefill else '') }}" required />
+    </div>
+    <div>
+      <label for="account_id">Account</label>
+      <select id="account_id" name="account_id" required>
+        {% for a in accounts %}
+        <option value="{{ a.id }}" {{ "selected" if (txn and txn.account_id == a.id) or (prefill and prefill.account_id == a.id) else "" }}>{{ a.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div id="to_account_field" style="display:none">
+    <label for="to_account_id">To account</label>
+    <select id="to_account_id" name="to_account_id">
+      {% for a in accounts %}
+      <option value="{{ a.id }}" {{ "selected" if txn and txn.to_account_id == a.id else "" }}>{{ a.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div id="category_field">
+    <label for="category_id">Category</label>
+    <select id="category_id" name="category_id">
+      <option value="">(none)</option>
+      {% for c in categories %}
+      <option value="{{ c.id }}" data-kind="{{ c.kind.value }}" {{ "selected" if txn and txn.category_id == c.id else "" }}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label for="note">Note</label>
+    <input id="note" name="note" placeholder="optional" value="{{ txn.note if txn and txn.note else (prefill.note if prefill else '') }}" />
+  </div>
+
+  <div id="reimbursable_field">
+    <label><input type="checkbox" name="reimbursable" value="1" {{ "checked" if txn and txn.reimbursable else "" }} style="width:auto;display:inline-block;" /> Reimbursable (I'll get this money back)</label>
+  </div>
+
+  <div id="refund_field">
+    <label><input type="checkbox" name="is_refund" value="1" {{ "checked" if txn and txn.is_refund else "" }} style="width:auto;display:inline-block;" /> Refund or payback (a friend paying you back, a store refund) -- takes it off spending in the category above instead of counting as income</label>
+  </div>
+
+  <div id="exclude_from_living_field">
+    {# Positive wording on purpose: "tick = counts as living". It used to
+       be a "Not a living ..." box, and unticking it to mean "not living"
+       did the opposite. Stored inverted as exclude_from_living. #}
+    <label><input type="checkbox" name="counts_as_living" value="1" {{ "" if txn and txn.exclude_from_living else "checked" }} style="width:auto;display:inline-block;" /> <span id="exclude_from_living_label">Counts as a living expense</span></label>
+  </div>
+
+  <button type="submit">{{ "Save changes" if txn else "Save" }}</button>
+</form>
+
+{% if txn %}
+<form method="post" action="/transactions/{{ txn.id }}/delete" style="margin-top:12px;"
+      onsubmit="return confirm('Delete this transaction? This can\'t be undone.');">
+  <button type="submit" style="background: var(--danger);">Delete transaction</button>
+</form>
+{% endif %}
+
+<script>
+function toggleFields() {
+  const type = document.getElementById('type').value;
+  document.getElementById('to_account_field').style.display = (type === 'transfer') ? 'block' : 'none';
+  document.getElementById('category_field').style.display = (type === 'transfer') ? 'none' : 'block';
+  document.getElementById('reimbursable_field').style.display = (type === 'expense') ? 'block' : 'none';
+  document.getElementById('refund_field').style.display = (type === 'income') ? 'block' : 'none';
+  document.getElementById('exclude_from_living_field').style.display = (type === 'transfer') ? 'none' : 'block';
+  document.getElementById('exclude_from_living_label').textContent = (type === 'income')
+    ? 'Counts as living income (untick for one-offs like a reimbursement or a deposit refund)'
+    : 'Counts as a living expense (untick for one-offs like tuition or a deposit)';
+}
+toggleFields();
+</script>
+{% endif %}

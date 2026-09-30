@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Trends{% endblock %}
+
+{# One stacked-bar chart slot; app/static/charts.js draws into it from
+   the JSON blob at the bottom of the page. #}
+{% macro bar_chart(key, empty_text) %}
+<div class="card chart-card">
+  {% if charts[key].series %}
+  <div class="chart" data-chart="bars" data-key="{{ key }}"></div>
+  {% else %}
+  <p class="empty">{{ empty_text }}</p>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+
+<form class="filter-row" method="get" action="/trends">
+  <div>
+    <label for="category_id">Highlight category</label>
+    <select id="category_id" name="category_id" onchange="this.form.submit()">
+      <option value="" {{ "selected" if selected_category_id is none else "" }}>All categories</option>
+      {% for c in categories %}
+      <option value="{{ c.id }}" {{ "selected" if c.id == selected_category_id else "" }}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="start">From</label>
+    <input type="month" id="start" name="start" value="{{ start_value }}" onchange="this.form.submit()" />
+  </div>
+  <div>
+    <label for="end">To</label>
+    <input type="month" id="end" name="end" value="{{ end_value }}" onchange="this.form.submit()" />
+  </div>
+  <noscript><button type="submit">Update</button></noscript>
+</form>
+
+<h2>Spending{{ " -- " + selected_category.name if selected_category else "" }}</h2>
+<input type="radio" name="exp_scope" id="exp_living" class="toggle-input" checked>
+<input type="radio" name="exp_scope" id="exp_total" class="toggle-input">
+<div class="segmented">
+  <label for="exp_living">Living expenses</label>
+  <label for="exp_total">Total expenses</label>
+</div>
+<div class="toggle-panel" data-for="exp_living">{{ bar_chart("expense_living", "No living expenses in this range.") }}</div>
+<div class="toggle-panel" data-for="exp_total">{{ bar_chart("expense_total", "No expenses in this range.") }}</div>
+
+<h2>Income</h2>
+<input type="radio" name="inc_scope" id="inc_living" class="toggle-input" checked>
+<input type="radio" name="inc_scope" id="inc_total" class="toggle-input">
+<div class="segmented">
+  <label for="inc_living">Living income</label>
+  <label for="inc_total">Total income</label>
+</div>
+<div class="toggle-panel" data-for="inc_living">{{ bar_chart("income_living", "No living income in this range.") }}</div>
+<div class="toggle-panel" data-for="inc_total">{{ bar_chart("income_total", "No income in this range.") }}</div>
+
+<h2>Balance over time</h2>
+<input type="radio" name="bal_gran" id="bal_day" class="toggle-input">
+<input type="radio" name="bal_gran" id="bal_week" class="toggle-input" checked>
+<input type="radio" name="bal_gran" id="bal_month" class="toggle-input">
+<div class="segmented">
+  {% for g, g_label in granularities %}
+  <label for="bal_{{ g }}">{{ g_label }}</label>
+  {% endfor %}
+</div>
+{% for g, g_label in granularities %}
+<div class="toggle-panel" data-for="bal_{{ g }}">
+  <div class="card chart-card">
+    {% if charts["balance_" + g]|length > 1 %}
+    <div class="chart" data-chart="line" data-key="balance_{{ g }}"></div>
+    <div class="chart-foot">
+      <span>Scroll on the chart to zoom the scale</span>
+      <button type="button" class="btn-sm btn-sm-outline" data-reset-scale>Reset scale</button>
+    </div>
+    {% else %}
+    <p class="empty">Not enough history yet to chart a balance trend.</p>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+
+{# |tojson escapes <, > and & -- safe inside a script element. #}
+<script type="application/json" id="chart-data">{{ charts|tojson }}</script>
+<script src="/static/charts.js?v={{ static_version('charts.js') }}"></script>
+{% endblock %}

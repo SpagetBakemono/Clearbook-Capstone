@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Manual{% endblock %}
+{% block content %}
+<h2>Add a transaction</h2>
+<p class="stat-sub" style="margin: -4px 0 16px; font-size: 13px;">
+  Linked bank accounts update on their own. Use this for cash, or anything the bank sync can't see.
+</p>
+<div class="manual-form">
+  {% include "_transaction_form.html" %}
+</div>
+{% endblock %}

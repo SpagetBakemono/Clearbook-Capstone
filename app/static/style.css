@@ -1,0 +1,303 @@
+/* "Dark Green Tropical" palette: navy #13243B, dark green #153D35,
+   green #1D8B65, teal #2C9D90, off-white #F3F3F1. Navy carries the chrome
+   and text, green is the interactive accent, teal draws the balance line.
+   Category colors for the stacked Trends charts are derived from this
+   family and validated separately -- see CATEGORY_COLOR_SLOTS in
+   services.py. --danger stays a true red: it's a status color. */
+:root {
+  --bg: #f3f3f1;
+  --surface: #ffffff;
+  --border: #dfe1dd;
+  --text: #13243b;
+  --muted: #6b7480;
+  --secondary: #3d4a5a;
+  --navy: #13243b;
+  --accent: #1d8b65;
+  --accent-strong: #153d35;
+  --chart-line: #2c9d90;
+  --grid: #eceeea;
+  --good: #1d8b65;
+  --danger: #c93b3b;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: var(--navy);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.brand { font-weight: 600; text-decoration: none; color: #ffffff; }
+
+.topbar nav a {
+  margin-left: 18px;
+  text-decoration: none;
+  color: #b9c3cf;
+  font-size: 14px;
+}
+.topbar nav a:hover, .topbar nav a.active { color: #ffffff; }
+.topbar nav a.active { font-weight: 600; }
+
+.container {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.stat-label {
+  font-size: 12px;
+  line-height: 1.4;
+  /* Reserves 2 lines' height always, so a label that wraps (e.g. "6-mo
+     avg monthly spend") doesn't push its value out of line with cards
+     whose label fits on one line. */
+  min-height: 2.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.stat-value.negative { color: var(--danger); }
+.stat-value.positive { color: var(--good); }
+
+.stat-sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section label above a row of stat cards (e.g. "All spending" /
+   "Living expenses") -- same visual weight as a table header. */
+.row-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0 0 8px; }
+
+h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); margin: 28px 0 12px; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); font-size: 14px; }
+th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; }
+
+.amount.expense { color: var(--danger); }
+.amount.income { color: var(--good); }
+
+/* Single-series magnitude bars (category breakdown): one sequential hue,
+   thin track, 4px rounded data-ends, 2px surface gap between rows.
+   Direct-labeled (category + amount as text) so no legend/hover is needed --
+   values are legible at rest, not just on interaction. */
+.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; }
+.bar-label { width: 110px; flex-shrink: 0; color: var(--secondary); }
+.bar-track { flex: 1; background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+.bar-fill { background: var(--accent); height: 100%; border-radius: 4px; }
+.bar-amount { width: 70px; text-align: right; flex-shrink: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+
+form.form-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+  max-width: 480px;
+}
+
+label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px; }
+input, select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  width: fit-content;
+}
+button:hover { opacity: 0.9; }
+
+.row { display: flex; flex-wrap: wrap; gap: 12px; }
+/* Side by side when there's room, stacked on a phone. */
+.row > * { flex: 1 1 180px; }
+
+.empty { color: var(--muted); font-size: 14px; padding: 20px 0; }
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.actions-col { text-align: right; }
+
+/* Bank-sync alert card (see _sync_alerts.html). */
+.capture-log { margin-bottom: 16px; }
+.capture-log.ok { border-color: var(--good); }
+.capture-log.mismatch { border-color: var(--danger); }
+
+/* Small inline-table buttons (Edit, Mark received) -- same footprint
+   whether it's a <button> or an <a>, so the two read as one family of
+   row actions instead of a button next to a bare link. */
+.btn-sm {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  width: auto;
+  line-height: 1.6;
+}
+.btn-sm-accent { background: var(--accent); color: white; border: none; }
+.btn-sm-accent:hover { opacity: 0.9; }
+.btn-sm-outline { background: transparent; color: var(--secondary); border: 1px solid var(--border); }
+.btn-sm-outline:hover { border-color: var(--muted); color: var(--text); }
+
+/* Toggles (Living/Total, Daily/Weekly/Monthly): CSS-only, no JS -- a
+   hidden radio per option, and a `~` general-sibling rule per option
+   hiding every panel that isn't its own. Radios and panels must stay
+   flat siblings (same parent) for `~` to reach them. */
+.toggle-input { display: none; }
+
+/* Full-width segmented control: the hidden radios come first, then a
+   .segmented row of their labels, then the panels -- all flat siblings,
+   so `#radio:checked ~ ...` reaches both the label row (to highlight the
+   chosen option) and the panels (to hide the others). */
+.segmented {
+  display: flex;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 3px;
+  gap: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.segmented label {
+  flex: 1;
+  margin: 0;
+  padding: 7px 10px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--secondary);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+.segmented label:hover { background: var(--bg); }
+
+#dash_living:checked ~ .segmented label[for="dash_living"],
+#dash_total:checked ~ .segmented label[for="dash_total"],
+#exp_living:checked ~ .segmented label[for="exp_living"],
+#exp_total:checked ~ .segmented label[for="exp_total"],
+#inc_living:checked ~ .segmented label[for="inc_living"],
+#inc_total:checked ~ .segmented label[for="inc_total"],
+#bal_day:checked ~ .segmented label[for="bal_day"],
+#bal_week:checked ~ .segmented label[for="bal_week"],
+#bal_month:checked ~ .segmented label[for="bal_month"] { background: var(--accent); color: #ffffff; }
+
+#dash_living:checked ~ [data-for="dash_total"],
+#dash_total:checked ~ [data-for="dash_living"],
+#exp_living:checked ~ [data-for="exp_total"],
+#exp_total:checked ~ [data-for="exp_living"],
+#inc_living:checked ~ [data-for="inc_total"],
+#inc_total:checked ~ [data-for="inc_living"],
+#bal_day:checked ~ [data-for="bal_week"],
+#bal_day:checked ~ [data-for="bal_month"],
+#bal_week:checked ~ [data-for="bal_day"],
+#bal_week:checked ~ [data-for="bal_month"],
+#bal_month:checked ~ [data-for="bal_day"],
+#bal_month:checked ~ [data-for="bal_week"] { display: none; }
+
+/* Trends */
+.filter-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 8px; }
+.filter-row > div { min-width: 160px; flex: 1; }
+.filter-row label { margin-bottom: 4px; }
+
+/* Charts drawn by app/static/charts.js. Axes and grid stay recessive;
+   text uses ink tokens, never a series color. */
+.chart-card { margin-bottom: 8px; }
+.chart { position: relative; width: 100%; min-height: 260px; }
+.chart-svg { display: block; overflow: visible; }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis-base { stroke: var(--border); stroke-width: 1; }
+.chart-svg .axis-label { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart-svg .bar-total { fill: var(--secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart-svg .line-path { fill: none; stroke: var(--chart-line); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-svg .line-area { fill: var(--chart-line); opacity: 0.1; }
+.chart-svg .line-end { fill: var(--chart-line); stroke: var(--surface); stroke-width: 2; }
+.chart-svg .line-dot { fill: var(--surface); stroke: var(--chart-line); stroke-width: 2; }
+.chart-svg .crosshair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; font-size: 12px; color: var(--secondary); }
+.chart-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.chart-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+.chart-tip {
+  display: none;
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  min-width: 170px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(19, 36, 59, 0.12);
+  font-size: 12px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.chart-tip .tip-head { font-weight: 600; margin-bottom: 4px; }
+.chart-tip .tip-row { display: flex; align-items: center; gap: 6px; padding: 1px 0; color: var(--secondary); }
+.chart-tip .tip-row b { margin-left: auto; padding-left: 12px; color: var(--text); font-weight: 600; }
+.chart-tip .tip-total { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
+
+.chart-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+
+/* Manual page: the add form spans the content width. */
+.manual-form .form-card { max-width: none; }

@@ -1,0 +1,14 @@
+{# Only bank-sync problems you have to fix yourself (a bank asking you to
+   sign in again) -- everything else retries or settles on its own. Then a
+   quiet "last updated" line so you can trust the numbers are fresh.
+   Shared by the Dashboard and Accounts pages. #}
+{% if sync_alerts %}
+<div class="card capture-log mismatch" style="margin-bottom: 16px;">
+  {% for alert in sync_alerts %}
+  <p style="margin: 0; font-size: 14px; color: var(--danger);">{{ alert }}</p>
+  {% endfor %}
+</div>
+{% endif %}
+{% if last_synced %}
+<p class="stat-sub" style="margin: 0 0 12px;">Bank data updated {{ last_synced }} &middot; refreshes automatically</p>
+{% endif %}

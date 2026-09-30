@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Expense Tracker{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ static_version('style.css') }}" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">Expense Tracker</a>
+    <nav>
+      {% set _path = request.url.path %}
+      <a href="/" {{ 'class=active' if _path == '/' }}>Dashboard</a>
+      <a href="/trends" {{ 'class=active' if _path.startswith('/trends') }}>Trends</a>
+      <a href="/accounts" {{ 'class=active' if _path.startswith('/accounts') }}>Accounts</a>
+      <a href="/manual" {{ 'class=active' if _path.startswith('/manual') or _path.startswith('/transactions') }}>Manual</a>
+    </nav>
+  </header>
+  <main class="container">
+    {% with messages = get_flashed_messages() if get_flashed_messages is defined else [] %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
