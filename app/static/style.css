@@ -444,3 +444,55 @@ button:hover { opacity: 0.9; }
 .demo-banner-cta:hover { background: var(--accent-strong); }
 .empty-state-alt { margin: 16px 0 0 !important; font-size: 14px; }
 .empty-state-alt a { color: var(--accent-strong); font-weight: 600; }
+
+/* ---- Dashboard ------------------------------------------------------- */
+/* Money colors: spending reads red, earning reads green. Both clear AA on
+   white cards (--expense 6.2:1, --income 5.4:1; on the page background
+   5.6:1 and 4.8:1). */
+:root { --expense: #b42f2f; --income: #17795a; }
+.amount-expense { color: var(--expense); }
+.amount-income { color: var(--income); }
+
+.balance-hero { margin-bottom: 20px; }
+.balance-hero .stat-label { min-height: 0; }
+.balance-hero-value { font-size: 34px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+
+/* Month + account in one aligned row; equal-height controls. */
+.period-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 14px; }
+.period-month { display: flex; align-items: center; gap: 6px; flex: 1 1 280px; }
+.period-month select { flex: 1; }
+.period-account { flex: 1 1 220px; }
+.period-bar select { height: 42px; padding: 0 12px; font-size: 15px; font-weight: 500; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.period-step { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 18px; }
+.period-step:hover { border-color: var(--muted); }
+.period-step.is-disabled { color: var(--border); background: transparent; }
+.period-step:focus-visible, .period-bar select:focus-visible, .period-today:focus-visible { outline: 3px solid var(--chart-line); outline-offset: 2px; }
+.period-today { font-size: 14px; font-weight: 600; color: var(--accent-strong); }
+
+.period-summary { font-size: 17px; line-height: 1.6; color: var(--secondary); margin: 0 0 28px; max-width: 46rem; }
+.period-summary strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.period-summary .amount-expense { color: var(--expense); }
+.period-summary .amount-income { color: var(--income); }
+
+/* Living / Total / Spending by category: real section headings. */
+.stat-group, .category-section { margin: 0 0 32px; }
+.stat-group-head { margin: 0 0 12px; }
+.stat-group-head h3 { font-family: var(--font-display); font-size: 22px; font-weight: 500; color: var(--text); margin: 0 0 2px; }
+.stat-group-head p { margin: 0; font-size: 14px; color: var(--muted); }
+.stat-group .stat-value { font-variant-numeric: tabular-nums; font-size: 26px; }
+.stat-group .stat-label { min-height: 0; }
+.stat-basis { color: var(--muted); }
+
+.category-section { margin-top: 40px; }
+.segmented-lg { margin: 16px 0 24px; padding: 4px; }
+.segmented-lg label { padding: 11px 12px; font-size: 15px; font-weight: 500; }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Phones: the top bar wraps instead of pushing links off-screen. */
+@media (max-width: 760px) {
+  .topbar { flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px; }
+  .topbar nav { flex-wrap: wrap; gap: 6px 16px; }
+  .topbar nav a { margin-left: 0; }
+  .topbar-user { margin-left: 0; padding-left: 0; border-left: none; }
+}

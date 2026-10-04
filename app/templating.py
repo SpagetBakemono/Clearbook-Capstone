@@ -19,3 +19,14 @@ def static_version(filename: str) -> str:
 
 
 templates.env.globals["static_version"] = static_version
+
+
+def money(value, signed: bool = False) -> str:
+    """$1,802.43 -- thousands separators, two decimals, minus sign before
+    the dollar sign. signed=True also shows "+" on positives (for nets)."""
+    amount = float(value or 0)
+    sign = "-" if amount < 0 else ("+" if signed and amount > 0 else "")
+    return f"{sign}${abs(amount):,.2f}"
+
+
+templates.env.filters["money"] = money

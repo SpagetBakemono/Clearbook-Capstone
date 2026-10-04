@@ -406,7 +406,9 @@ def _trailing_average(
     being viewed, so browsing to a past month shows the "typical" figure
     as it stood then, not one quietly computed through today (which
     would leak months the viewed period hasn't reached yet)."""
-    as_of_month = date((as_of or date.today()).year, (as_of or date.today()).month, 1)
+    today = date.today()
+    as_of_month = date((as_of or today).year, (as_of or today).month, 1)
+    this_month = date(today.year, today.month, 1)
     # Exclusive upper bound -- nothing dated after the viewed month counts,
     # same reasoning as the lower bound below.
     window_end = as_of_month + relativedelta(months=1)
@@ -443,6 +445,15 @@ def _trailing_average(
     )
     if earliest is None:
         return Decimal(0), 0
+
+    # "Typical" means a typical *whole* month. The month still in progress
+    # is left out whenever there's at least one complete month before it --
+    # four days of October averaged in as a full month would drag
+    # "typical" down by a quarter.
+    if as_of_month == this_month and earliest < this_month:
+        as_of_month = this_month - relativedelta(months=1)
+        window_end = this_month
+        window_start = as_of_month - relativedelta(months=months - 1)
 
     start = max(window_start, date(earliest.year, earliest.month, 1))
 

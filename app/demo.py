@@ -113,7 +113,7 @@ def create_demo_user(db: Session, today: date | None = None) -> User:
 
         # ---- income
         for payday in (1, 15):
-            add(day(payday), _money(2080, 2190), I, checking, "Salary", "Acme Analytics payroll")
+            add(day(payday), _money(1880, 1960), I, checking, "Salary", "Acme Analytics payroll")
         if m == 1:
             add(day(19), "386.40", I, checking, "Reimbursement", "Work travel reimbursement",
                 exclude_from_living=True)
@@ -125,6 +125,9 @@ def create_demo_user(db: Session, today: date | None = None) -> User:
         add(day(1), "1650.00", E, checking, "Rent", "Rent - Maple Street Apartments")
         add(day(6), _money(58, 84), E, checking, "Other", "City Power & Gas")
         add(day(9), "45.00", E, checking, "Other", "FiberNet Internet")
+        add(day(12), "45.00", E, checking, "Other", "Mobile phone plan")
+        add(day(18), "14.50", E, checking, "Other", "Renters insurance")
+        on_card(day(4), "39.99", "Health", "Gym membership")
         for d, amt, name in [(3, "15.49", "StreamFlix"), (11, "10.99", "Tunely Music"), (21, "2.99", "CloudBox Storage")]:
             on_card(day(d), amt, "Subscriptions", name)
 
@@ -140,20 +143,20 @@ def create_demo_user(db: Session, today: date | None = None) -> User:
             if dd.weekday() < 5 and random.random() < 0.3:
                 on_card(dd, _money(9, 16), "Food", random.choice(["Campus Deli", "Green Bowl", "Noodle Bar"]))
         for week in range(4):
-            on_card(day(2 + week * 7 + random.randint(0, 2)), _money(38, 92), "Groceries",
+            on_card(day(2 + week * 7 + random.randint(0, 2)), _money(55, 110), "Groceries",
                     random.choice(["Corner Market", "FreshCo Grocery", "Corner Market"]))
-        for _ in range(random.randint(2, 4)):
+        for _ in range(random.randint(3, 5)):
             on_card(day(random.randint(4, 28)), _money(28, 74), "Food",
                     random.choice(["Trattoria Roma", "Sakura Sushi", "Taco Republic", "The Burger Joint"]))
         if random.random() < 0.8:
             on_card(day(random.randint(5, 25)), _money(9, 38), "Health", "Main St Pharmacy")
-        for _ in range(random.randint(1, 3)):
-            on_card(day(random.randint(2, 28)), _money(18, 85), "Shopping",
+        for _ in range(random.randint(2, 4)):
+            on_card(day(random.randint(2, 28)), _money(20, 95), "Shopping",
                     random.choice(["Online Marketplace", "Threadline Apparel", "HomeGoods Plus"]))
         if random.random() < 0.6:
             on_card(day(random.randint(8, 26)), _money(14, 40), "Entertainment",
                     random.choice(["Cinema Paradiso", "Indie Games Store", "Bowling Lanes"]))
-        add(day(2), "60.00", T, checking, None, "ATM withdrawal", to_account_id=cash.id)
+        add(day(2), "40.00", T, checking, None, "ATM withdrawal", to_account_id=cash.id)
         for _ in range(random.randint(2, 4)):  # cash: food carts, laundry
             add(day(random.randint(1, 28)), _money(4, 14), E, cash,
                 random.choice(["Food", "Other"]), random.choice(["Food cart", "Laundromat", "Farmers market"]))
@@ -170,10 +173,13 @@ def create_demo_user(db: Session, today: date | None = None) -> User:
                     reimbursement_status=ReimbursementStatus.PENDING)
 
     # ---- pay off each month's card statement on the 25th of the next month
+    # (the first payment also clears the balance the card started with)
+    carried = card.opening_balance
     for month_start, spent in sorted(card_spend_by_month.items()):
         pay_day = (month_start + relativedelta(months=1)).replace(day=25)
-        add(pay_day, spent.quantize(Decimal("0.01")), T, checking, None,
+        add(pay_day, (spent + carried).quantize(Decimal("0.01")), T, checking, None,
             "Rewards Card payment", to_account_id=card.id)
+        carried = Decimal(0)
 
     db.add_all(rows)
     db.commit()

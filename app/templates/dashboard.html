@@ -16,119 +16,139 @@
 {% else %}
 {% include "_sync_alerts.html" %}
 
-{% if balances %}
-<div class="card" style="margin-bottom: 24px;">
-  <p class="stat-label">Total balance</p>
-  <p class="stat-value {{ 'positive' if total_balance >= 0 else 'negative' }}" style="font-size: 32px;">
-    ${{ "%.2f"|format(total_balance) }}
-  </p>
-</div>
-{% endif %}
-
 {% set _account_qs = "&account_id=" + selected_account_id|string if selected_account_id else "" %}
-<div style="display:flex; align-items:baseline; gap:12px;">
-  <a href="/?month={{ prev_month_value }}{{ _account_qs }}" class="btn-sm btn-sm-outline" aria-label="Previous month">&larr;</a>
-  <h2 style="margin: 0;">{{ month_name }}{{ " -- " + selected_account.name if selected_account else "" }}</h2>
-  {% if not is_current_month %}
-  <a href="/?month={{ next_month_value }}{{ _account_qs }}" class="btn-sm btn-sm-outline" aria-label="Next month">&rarr;</a>
-  <a href="/{{ _account_qs|replace('&', '?', 1) }}" class="btn-sm btn-sm-outline">Today</a>
-  {% endif %}
+<div class="card balance-hero">
+  <p class="stat-label">Total balance{{ " · " + selected_account.name if selected_account else "" }}</p>
+  <p class="stat-value balance-hero-value {{ 'positive' if total_balance >= 0 else 'negative' }}">{{ total_balance|money }}</p>
 </div>
 
-<form class="filter-row" method="get" action="/">
-  <div>
-    <label for="account_id">Account</label>
+{# Period bar: which month, which account -- one aligned row. #}
+<form class="period-bar" method="get" action="/">
+  <div class="period-month">
+    {% if has_prev_month %}
+    <a href="/?month={{ prev_month_value }}{{ _account_qs }}" class="period-step" aria-label="Previous month">&larr;</a>
+    {% else %}<span class="period-step is-disabled" aria-hidden="true">&larr;</span>{% endif %}
+    <label class="visually-hidden" for="month">Month</label>
+    <select id="month" name="month" onchange="this.form.submit()">
+      {% for opt in month_options %}
+      <option value="{{ opt.value }}" {{ "selected" if opt.value == month_value }}>{{ opt.label }}</option>
+      {% endfor %}
+    </select>
+    {% if not is_current_month %}
+    <a href="/?month={{ next_month_value }}{{ _account_qs }}" class="period-step" aria-label="Next month">&rarr;</a>
+    {% else %}<span class="period-step is-disabled" aria-hidden="true">&rarr;</span>{% endif %}
+  </div>
+  <div class="period-account">
+    <label class="visually-hidden" for="account_id">Account</label>
     <select id="account_id" name="account_id" onchange="this.form.submit()">
-      <option value="" {{ "selected" if not selected_account else "" }}>All accounts</option>
+      <option value="" {{ "selected" if not selected_account }}>All accounts</option>
       {% for account, _ in balances %}
-      <option value="{{ account.id }}" {{ "selected" if selected_account and account.id == selected_account.id else "" }}>{{ account.name }}</option>
+      <option value="{{ account.id }}" {{ "selected" if selected_account and account.id == selected_account.id }}>{{ account.name }}</option>
       {% endfor %}
     </select>
   </div>
-  <div>
-    <label for="month">Month</label>
-    <input type="month" id="month" name="month" value="{{ month_value }}" max="{{ current_month_value }}" onchange="this.form.submit()" />
-  </div>
+  {% if not is_current_month %}<a class="period-today" href="/{{ _account_qs|replace('&', '?', 1) }}">Back to this month</a>{% endif %}
   <noscript><button type="submit">Update</button></noscript>
 </form>
 
-<p class="row-label">Living</p>
-<div class="grid">
-  <div class="card">
-    <p class="stat-label">Living expenses</p>
-    <p class="stat-value">${{ "%.2f"|format(summary.living_expenses) }}</p>
-    <p class="stat-sub">Typical ({{ living_expense_avg_months }} mo): ${{ "%.2f"|format(living_expense_avg) }}</p>
-  </div>
-  <div class="card">
-    <p class="stat-label">Income</p>
-    <p class="stat-value">${{ "%.2f"|format(summary.living_income) }}</p>
-    <p class="stat-sub">Typical ({{ living_income_avg_months }} mo): ${{ "%.2f"|format(living_income_avg) }}</p>
-  </div>
-  <div class="card">
-    <p class="stat-label">Living net</p>
-    <p class="stat-value {{ 'positive' if summary.living_net >= 0 else 'negative' }}">
-      {{ '+' if summary.living_net >= 0 else '' }}${{ "%.2f"|format(summary.living_net) }}
-    </p>
-    <p class="stat-sub">Typical: {{ '+' if (living_income_avg - living_expense_avg) >= 0 else '' }}${{ "%.2f"|format(living_income_avg - living_expense_avg) }}</p>
-  </div>
-</div>
+{# The month in one sentence, before the numbers. #}
+<p class="period-summary">
+  {% if is_current_month %}So far in {{ month_name }}{% else %}In {{ month_name }}{% endif %},
+  {{ "on " + selected_account.name if selected_account else "across all accounts" }},
+  you spent <strong class="amount-expense">{{ summary.living_expenses|money }}</strong> on living costs
+  and earned <strong class="amount-income">{{ summary.living_income|money }}</strong>
+  {%- if summary.living_net >= 0 %} &mdash; <strong>{{ summary.living_net|money }}</strong> left over.
+  {%- else %} &mdash; <strong class="amount-expense">{{ (-summary.living_net)|money }}</strong> more out than in.{% endif %}
+</p>
 
-<p class="row-label" style="margin-top: 14px;">Total, including one-offs</p>
-<div class="grid">
-  <div class="card">
-    <p class="stat-label">Expenses</p>
-    <p class="stat-value">${{ "%.2f"|format(summary.expenses) }}</p>
-    <p class="stat-sub">Typical ({{ expense_avg_months }} mo): ${{ "%.2f"|format(expense_avg) }}</p>
+<section class="stat-group">
+  <div class="stat-group-head">
+    <h3>Living</h3>
+    <p>Everyday money in and out, leaving out one-offs like a laptop or a work reimbursement.</p>
   </div>
-  <div class="card">
-    <p class="stat-label">Income</p>
-    <p class="stat-value">${{ "%.2f"|format(summary.income) }}</p>
-    <p class="stat-sub">Typical ({{ income_avg_months }} mo): ${{ "%.2f"|format(income_avg) }}</p>
-  </div>
-  <div class="card">
-    <p class="stat-label">Net</p>
-    <p class="stat-value {{ 'positive' if summary.net >= 0 else 'negative' }}">
-      {{ '+' if summary.net >= 0 else '' }}${{ "%.2f"|format(summary.net) }}
-    </p>
-    <p class="stat-sub">Typical: {{ '+' if (income_avg - expense_avg) >= 0 else '' }}${{ "%.2f"|format(income_avg - expense_avg) }}</p>
-  </div>
-</div>
-
-<h2>Spending by category</h2>
-
-<input type="radio" name="dash_scope" id="dash_living" class="toggle-input" checked>
-<input type="radio" name="dash_scope" id="dash_total" class="toggle-input">
-<div class="segmented">
-  <label for="dash_living">Living</label>
-  <label for="dash_total">Total</label>
-</div>
-
-<div class="toggle-panel" data-for="dash_living">
-  {% if summary.by_category_living %}
-    {% for name, amount in summary.by_category_living.items() %}
-    <div class="bar-row">
-      <div class="bar-label">{{ name }}</div>
-      <div class="bar-track"><div class="bar-fill" style="width: {{ (amount / max_category_living * 100)|round(1) }}%"></div></div>
-      <div class="bar-amount">${{ "%.2f"|format(amount) }}</div>
+  <div class="grid">
+    <div class="card">
+      <p class="stat-label">Living expenses</p>
+      <p class="stat-value amount-expense">{{ summary.living_expenses|money }}</p>
+      <p class="stat-sub">Typical month: {{ living_expense_avg|money }}{% if living_expense_avg_months %} <span class="stat-basis">({{ living_expense_avg_months }}-mo avg)</span>{% endif %}</p>
     </div>
-    {% endfor %}
-  {% else %}
-    <p class="empty">No living expenses logged this month yet.</p>
-  {% endif %}
-</div>
-<div class="toggle-panel" data-for="dash_total">
-  {% if summary.by_category %}
-    {% for name, amount in summary.by_category.items() %}
-    <div class="bar-row">
-      <div class="bar-label">{{ name }}</div>
-      <div class="bar-track"><div class="bar-fill" style="width: {{ (amount / max_category * 100)|round(1) }}%"></div></div>
-      <div class="bar-amount">${{ "%.2f"|format(amount) }}</div>
+    <div class="card">
+      <p class="stat-label">Living income</p>
+      <p class="stat-value amount-income">{{ summary.living_income|money }}</p>
+      <p class="stat-sub">Typical month: {{ living_income_avg|money }}{% if living_income_avg_months %} <span class="stat-basis">({{ living_income_avg_months }}-mo avg)</span>{% endif %}</p>
     </div>
-    {% endfor %}
-  {% else %}
-    <p class="empty">No expenses logged this month yet.</p>
-  {% endif %}
-</div>
+    <div class="card">
+      <p class="stat-label">Living net</p>
+      <p class="stat-value {{ 'positive' if summary.living_net >= 0 else 'negative' }}">{{ summary.living_net|money(signed=True) }}</p>
+      <p class="stat-sub">Typical month: {{ (living_income_avg - living_expense_avg)|money(signed=True) }}</p>
+    </div>
+  </div>
+</section>
+
+<section class="stat-group">
+  <div class="stat-group-head">
+    <h3>Total</h3>
+    <p>Everything, one-offs included.</p>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <p class="stat-label">Expenses</p>
+      <p class="stat-value amount-expense">{{ summary.expenses|money }}</p>
+      <p class="stat-sub">Typical month: {{ expense_avg|money }}{% if expense_avg_months %} <span class="stat-basis">({{ expense_avg_months }}-mo avg)</span>{% endif %}</p>
+    </div>
+    <div class="card">
+      <p class="stat-label">Income</p>
+      <p class="stat-value amount-income">{{ summary.income|money }}</p>
+      <p class="stat-sub">Typical month: {{ income_avg|money }}{% if income_avg_months %} <span class="stat-basis">({{ income_avg_months }}-mo avg)</span>{% endif %}</p>
+    </div>
+    <div class="card">
+      <p class="stat-label">Net</p>
+      <p class="stat-value {{ 'positive' if summary.net >= 0 else 'negative' }}">{{ summary.net|money(signed=True) }}</p>
+      <p class="stat-sub">Typical month: {{ (income_avg - expense_avg)|money(signed=True) }}</p>
+    </div>
+  </div>
+</section>
+
+<section class="category-section">
+  <div class="stat-group-head">
+    <h3>Spending by category</h3>
+    <p>Where {{ "this month's" if is_current_month else month_name + "'s" }} money went.</p>
+  </div>
+
+  <input type="radio" name="dash_scope" id="dash_living" class="toggle-input" checked>
+  <input type="radio" name="dash_scope" id="dash_total" class="toggle-input">
+  <div class="segmented segmented-lg">
+    <label for="dash_living">Living</label>
+    <label for="dash_total">Total</label>
+  </div>
+
+  <div class="toggle-panel" data-for="dash_living">
+    {% if summary.by_category_living %}
+      {% for name, amount in summary.by_category_living.items() %}
+      <div class="bar-row">
+        <div class="bar-label">{{ name }}</div>
+        <div class="bar-track"><div class="bar-fill" style="width: {{ (amount / max_category_living * 100)|round(1) }}%"></div></div>
+        <div class="bar-amount">{{ amount|money }}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty">No living expenses logged this month yet.</p>
+    {% endif %}
+  </div>
+  <div class="toggle-panel" data-for="dash_total">
+    {% if summary.by_category %}
+      {% for name, amount in summary.by_category.items() %}
+      <div class="bar-row">
+        <div class="bar-label">{{ name }}</div>
+        <div class="bar-track"><div class="bar-fill" style="width: {{ (amount / max_category * 100)|round(1) }}%"></div></div>
+        <div class="bar-amount">{{ amount|money }}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty">No expenses logged this month yet.</p>
+    {% endif %}
+  </div>
+</section>
 
 <h2>Accounts</h2>
 {% if balances %}
@@ -139,7 +159,7 @@
     <tr>
       <td>{{ account.name }} <span class="badge">{{ account.type.value.replace('_', ' ') }}</span></td>
       <td class="{{ 'amount expense' if account.type.value == 'credit_card' and balance > 0 else '' }}">
-        {% if account.type.value == 'credit_card' %}${{ "%.2f"|format(balance) }} owed{% else %}${{ "%.2f"|format(balance) }}{% endif %}
+        {% if account.type.value == 'credit_card' %}{{ balance|money }} owed{% else %}{{ balance|money }}{% endif %}
       </td>
     </tr>
     {% endfor %}
@@ -158,7 +178,7 @@
     <tr>
       <td>{{ t.date.isoformat() }}</td>
       <td>{{ t.note or (t.category.name if t.category else '') }}</td>
-      <td class="amount expense">${{ "%.2f"|format(t.amount) }}</td>
+      <td class="amount expense">{{ t.amount|money }}</td>
       <td class="actions-col">
         <form method="post" action="/transactions/{{ t.id }}/mark-reimbursed" style="margin:0;display:inline;">
           <button type="submit" class="btn-sm btn-sm-accent">Mark received</button>
@@ -181,7 +201,7 @@
       <td><span class="badge">{{ "refund" if t.is_refund else t.type.value }}</span>{% if t.pending %} <span class="badge" style="color: var(--accent); border-color: var(--accent);">pending</span>{% endif %}</td>
       <td>{{ t.category.name if t.category else '—' }}</td>
       <td>{{ t.note or '' }}</td>
-      <td class="amount {{ 'expense' if t.type.value == 'expense' else 'income' }}">${{ "%.2f"|format(t.amount) }}</td>
+      <td class="amount {{ 'expense' if t.type.value == 'expense' else 'income' }}">{{ t.amount|money }}</td>
       <td class="actions-col"><a href="/transactions/{{ t.id }}/edit" class="btn-sm btn-sm-outline">Edit</a></td>
     </tr>
     {% endfor %}

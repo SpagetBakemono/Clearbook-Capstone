@@ -117,6 +117,14 @@ fix it in the same change that makes it stale.
   tokens). The route passes plain data via a `|tojson` script blob.
   Every chart needs a real Y-axis; the balance chart starts at $0 and the
   mouse wheel zooms its floor.
+- Money is shown with the `money` Jinja filter (`$1,802.43`, `|money(signed=True)`
+  for nets). Expenses red (`.amount-expense`), income green
+  (`.amount-income`), nets keep positive/negative coloring.
+- Dashboard top: one period bar (arrows + "October 2026" month select +
+  account select), then a plain-English summary sentence, then the Living
+  and Total groups with serif section headings and one-line explainers.
+- "Typical month" averages *complete* months only -- the month in progress
+  is left out when earlier history exists (`_trailing_average`).
 - Nav order is Dashboard > Trends > Accounts > Manual (user-specified).
   "Manual" is the hand-entry form (cash, or anything the sync can't see);
   `/transactions/new` and the old `/import` URLs redirect there.
