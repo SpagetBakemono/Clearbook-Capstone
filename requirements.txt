@@ -9,3 +9,4 @@ plaid-python>=27.0.0
 cryptography>=42
 certifi
 itsdangerous>=2.1
+psycopg[binary]>=3.2

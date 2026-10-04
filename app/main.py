@@ -9,7 +9,9 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.auth import LoginRequired
 
-from app.database import Base, SessionLocal, engine
+from urllib.parse import urlsplit
+
+from app.database import ON_VERCEL, Base, SessionLocal, engine
 from app.plaid_sync import sync_periodically
 from app.routers import accounts, auth, dashboard, imports, plaid_routes, transactions, trends
 from app.services import seed_default_categories
@@ -36,10 +38,26 @@ async def reject_cross_site_writes(request: Request, call_next):
     website can't drive."""
     if request.method in UNSAFE_METHODS:
         origin = request.headers.get("origin")
-        own_origin = f"{request.url.scheme}://{request.headers.get('host', '')}"
-        if origin and origin != own_origin:
+        # Compare hosts, not full origins: behind Vercel's proxy the app
+        # itself may see plain http while the browser's Origin is https.
+        if origin and urlsplit(origin).netloc != request.headers.get("host", ""):
             return PlainTextResponse("Cross-site request blocked.", status_code=403)
     return await call_next(request)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Standard hardening for a site that holds financial data: no framing
+    (clickjacking), no MIME sniffing, no referrer leaking page URLs, and
+    HTTPS-only once deployed."""
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if ON_VERCEL:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 
 @app.exception_handler(LoginRequired)
@@ -75,7 +93,15 @@ app.add_middleware(
 # 127.0.0.1 and slip past same-origin rules entirely. It still has to
 # send its own name in the Host header, so only accept ours. Added last
 # so it runs first.
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+# Allowed: localhost for development, plus the deployment's own Vercel
+# addresses (Vercel sets these at runtime) and any custom domains listed in
+# ALLOWED_HOSTS (comma-separated).
+_allowed_hosts = ["127.0.0.1", "localhost"]
+for var in ("VERCEL_URL", "VERCEL_BRANCH_URL", "VERCEL_PROJECT_PRODUCTION_URL"):
+    if os.getenv(var):
+        _allowed_hosts.append(os.environ[var])
+_allowed_hosts += [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()]
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -100,7 +126,9 @@ def on_startup():
     finally:
         db.close()
 
-    # Post new bank transactions on launch and every few hours after.
-    # Background thread so the page opens immediately instead of waiting
-    # on Plaid; daemon so it never holds up shutdown.
-    threading.Thread(target=sync_periodically, daemon=True).start()
+    # Locally: post new bank transactions on launch and every few hours
+    # after, in a background thread. On Vercel there's no long-running
+    # process for a thread to live in -- syncing happens on login and
+    # "Sync now" instead.
+    if not ON_VERCEL:
+        threading.Thread(target=sync_periodically, daemon=True).start()

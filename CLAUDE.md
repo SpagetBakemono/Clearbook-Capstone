@@ -33,8 +33,12 @@ never be touched from here).
 4. Onboarding (/welcome): keys -> connect sandbox bank -> auto-created
    accounts with back-filled opening balance -> dashboard; "Load demo
    data" fallback.
-5. Serverless fixes: remove `sync_periodically`, NullPool, trusted hosts
-   from env, `vercel.json` (entry, maxDuration, security headers).
+5. ~~Serverless fixes~~ Done: `api/index.py` entry + `vercel.json`
+   (rewrite everything to it), Postgres via psycopg 3 + NullPool
+   (`app/database.py` refuses to run on Vercel without DATABASE_URL), no
+   sync thread when `VERCEL` is set, trusted hosts from Vercel's own
+   `VERCEL_*URL` vars + `ALLOWED_HOSTS`, CSRF compares hosts (proxy-safe),
+   security headers middleware, Python pinned to 3.12.
 6. Deploy (owner creates Vercel project + Neon + env vars).
 
 # Working conventions for this repo
