@@ -457,17 +457,25 @@ button:hover { opacity: 0.9; }
 .balance-hero .stat-label { min-height: 0; }
 .balance-hero-value { font-size: 34px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 
-/* Month + account in one aligned row; equal-height controls. */
-.period-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 14px; }
-.period-month { display: flex; align-items: center; gap: 6px; flex: 1 1 280px; }
-.period-month select { flex: 1; }
-.period-account { flex: 1 1 220px; }
-.period-bar select { height: 42px; padding: 0 12px; font-size: 15px; font-weight: 500; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-.period-step { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 18px; }
+/* Month + account in one fixed row: [<] [month] [>] [account]. Grid
+   columns, so nothing resizes when the month or arrow state changes. */
+.period-bar { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px minmax(0, 1fr); gap: 8px; margin: 0 0 28px; }
+.period-month, .period-account { display: contents; }
+.period-bar select {
+  width: 100%; height: 42px; padding: 0 36px 0 12px;
+  font-size: 15px; font-weight: 500; color: var(--text);
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%235f6873' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 14px center;
+  border: 1px solid var(--border); border-radius: 8px;
+  -webkit-appearance: none; appearance: none;
+}
+.period-step { display: inline-flex; align-items: center; justify-content: center; height: 42px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 18px; }
 .period-step:hover { border-color: var(--muted); }
-.period-step.is-disabled { color: var(--border); background: transparent; }
-.period-step:focus-visible, .period-bar select:focus-visible, .period-today:focus-visible { outline: 3px solid var(--chart-line); outline-offset: 2px; }
-.period-today { font-size: 14px; font-weight: 600; color: var(--accent-strong); }
+.period-step.is-disabled { color: var(--border); }
+.period-step:focus-visible, .period-bar select:focus-visible { outline: 3px solid var(--chart-line); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .period-bar { grid-template-columns: 42px minmax(0, 1fr) 42px; }
+  .period-bar #account_id { grid-column: 1 / -1; }
+}
 
 .period-summary { font-size: 17px; line-height: 1.6; color: var(--secondary); margin: 0 0 28px; max-width: 46rem; }
 .period-summary strong { color: var(--text); font-variant-numeric: tabular-nums; }
