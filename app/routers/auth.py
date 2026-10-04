@@ -20,6 +20,7 @@ from app.auth import (
     verify_password,
 )
 from app.database import get_db
+from app.demo import create_demo_user, delete_demo_users, delete_stale_demo_users
 from app.models import User
 from app.plaid_client import PlaidCreds, create_link_token, describe_error
 from app.plaid_sync import sync_user_accounts
@@ -111,8 +112,20 @@ def signup(
     return RedirectResponse(url="/setup/plaid", status_code=303)
 
 
+@router.post("/demo")
+def start_demo(request: Request, db: Session = Depends(get_db)):
+    """A fresh, private demo account full of made-up data (app/demo.py)."""
+    delete_stale_demo_users(db)
+    user = create_demo_user(db)
+    log_in(request, user)
+    return RedirectResponse(url="/", status_code=303)
+
+
 @router.post("/logout")
-def logout(request: Request):
+def logout(request: Request, db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if user is not None and user.is_demo:
+        delete_demo_users(db, [user.id])  # a finished demo has no further use
     log_out(request)
     return RedirectResponse(url="/landing", status_code=303)
 
@@ -138,6 +151,8 @@ def _friendly_plaid_error(e: Exception) -> str:
 
 @router.get("/setup/plaid")
 def plaid_setup_form(request: Request, user: User = Depends(require_user)):
+    if user.is_demo:  # the demo runs on made-up data, never on Plaid
+        return RedirectResponse(url="/", status_code=303)
     return templates.TemplateResponse(
         request,
         "plaid_setup.html",
@@ -153,6 +168,8 @@ def plaid_setup(
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
+    if user.is_demo:
+        return RedirectResponse(url="/", status_code=303)
     client_id, secret = client_id.strip(), secret.strip()
 
     def fail(message: str):

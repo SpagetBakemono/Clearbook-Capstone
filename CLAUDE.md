@@ -164,6 +164,20 @@ review queue (`PendingImport`; its empty `pending_imports` table is still
 in the db, unused). Both are in git history if a non-Plaid bank ever
 needs them.
 
+## Demo mode
+
+- Landing page "View a demo" (`POST /demo`) creates a private throwaway
+  demo user (`User.is_demo`) with ~4 months of made-up data (`app/demo.py`:
+  3 accounts, paychecks, rent, transit, groceries, dining, subscriptions, a
+  trip, a non-living one-off, friend paybacks as refunds, monthly card
+  payments and ATM top-ups). Generic merchants and randomized amounts --
+  **never use the owner's real numbers here.**
+- Demo users can't log in (unusable hash), can't set up Plaid or call
+  `/plaid/*` (403), see a "made-up data" banner, and "Exit demo" deletes
+  their data. Demo users older than 24h are purged when a new demo starts.
+- Empty Dashboard: "No accounts connected" + "Set up Plaid" when keys are
+  missing, or "Add an account" when keys exist.
+
 ## Users and data isolation
 
 - `User` (email lowercased, scrypt hash + salt -- `app/auth.py`); session

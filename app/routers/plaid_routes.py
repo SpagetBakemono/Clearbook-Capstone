@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -17,6 +17,13 @@ from app.plaid_sync import LAST_SYNC_ERRORS, NoPlaidKeys, creds_for, sync_accoun
 from app.routers.accounts import owned_account
 from app.token_crypto import decrypt_token, encrypt_token
 
+def require_real_user(user: User = Depends(require_user)) -> User:
+    """Plaid is off-limits to demo visitors -- the demo is made-up data."""
+    if user.is_demo:
+        raise HTTPException(status_code=403, detail="Not available in the demo.")
+    return user
+
+
 router = APIRouter()
 
 
@@ -27,7 +34,7 @@ def _plaid_error(e: Exception) -> JSONResponse:
 
 
 @router.post("/plaid/create-link-token")
-def plaid_create_link_token(user: User = Depends(require_user)):
+def plaid_create_link_token(user: User = Depends(require_real_user)):
     try:
         return {"link_token": create_link_token(creds_for(user), f"clearbook-user-{user.id}")}
     except NoPlaidKeys as e:
@@ -47,7 +54,7 @@ class ExchangeRequest(BaseModel):
 
 @router.post("/plaid/exchange")
 def plaid_exchange(
-    body: ExchangeRequest, user: User = Depends(require_user), db: Session = Depends(get_db)
+    body: ExchangeRequest, user: User = Depends(require_real_user), db: Session = Depends(get_db)
 ):
     account = owned_account(db, user, body.account_id)
     if account is None:
@@ -89,7 +96,7 @@ def plaid_exchange(
 
 @router.post("/accounts/{account_id}/plaid/sync")
 def plaid_sync(
-    account_id: int, user: User = Depends(require_user), db: Session = Depends(get_db)
+    account_id: int, user: User = Depends(require_real_user), db: Session = Depends(get_db)
 ):
     account = owned_account(db, user, account_id)
     if account is None or not account.plaid_access_token:
@@ -101,7 +108,7 @@ def plaid_sync(
 
 @router.post("/accounts/{account_id}/plaid/disconnect")
 def plaid_disconnect(
-    account_id: int, user: User = Depends(require_user), db: Session = Depends(get_db)
+    account_id: int, user: User = Depends(require_real_user), db: Session = Depends(get_db)
 ):
     """Revokes the connection at Plaid, then forgets it locally. Also how
     you relink an account against real data after testing in sandbox."""

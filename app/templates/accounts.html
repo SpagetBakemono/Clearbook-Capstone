@@ -3,7 +3,9 @@
 {% block content %}
 <h2>Accounts</h2>
 {% include "_sync_alerts.html" %}
-{% if not has_plaid_keys %}
+{% if request.state.user.is_demo %}
+{# demo data is made up -- no Plaid to set up #}
+{% elif not has_plaid_keys %}
 <div class="card capture-log" style="margin-bottom: 16px;">
   <p style="margin: 0; font-size: 14px;">To connect a bank, first add your Plaid keys. <a href="/setup/plaid">Add Plaid keys</a></p>
 </div>

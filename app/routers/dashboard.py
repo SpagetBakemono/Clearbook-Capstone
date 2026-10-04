@@ -92,6 +92,7 @@ def dashboard(
         "dashboard.html",
         {
             "summary": summary,
+            "has_plaid_keys": bool(user.plaid_secret),
             "balances": balances,
             "total_balance": total_balance,
             "selected_account_id": effective_account_id,

@@ -70,6 +70,10 @@ class User(Base):
     # The user's own Plaid Sandbox keys (Clearbook has none of its own).
     # The secret is Fernet-encrypted (app/token_crypto.py) and only ever
     # decrypted in memory to make a Plaid call; never sent to the browser.
+    # A throwaway "View demo" visitor (app/demo.py): generated data, no
+    # usable password, deleted after DEMO_TTL. Can't set up Plaid.
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+
     plaid_client_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     plaid_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
 

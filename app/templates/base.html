@@ -20,12 +20,18 @@
       <a href="/manual" {{ 'class=active' if _path.startswith('/manual') or _path.startswith('/transactions') }}>Manual</a>
       {% if request.state.user is defined %}
       <form method="post" action="/logout" class="topbar-user">
-        <span title="Logged in">{{ request.state.user.email }}</span>
-        <button type="submit">Log out</button>
+        {% if not request.state.user.is_demo %}<span title="Logged in">{{ request.state.user.email }}</span>{% endif %}
+        <button type="submit">{{ "Exit demo" if request.state.user.is_demo else "Log out" }}</button>
       </form>
       {% endif %}
     </nav>
   </header>
+  {% if request.state.user is defined and request.state.user.is_demo %}
+  <div class="demo-banner" role="note">
+    <span>You're exploring a demo with made-up data.</span>
+    <a href="/signup" class="demo-banner-cta">Sign up free</a>
+  </div>
+  {% endif %}
   <main class="container">
     {% with messages = get_flashed_messages() if get_flashed_messages is defined else [] %}
     {% endwith %}

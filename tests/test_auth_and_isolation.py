@@ -268,7 +268,7 @@ def test_empty_dashboard_points_to_accounts(started):
     c = client()
     signup(c, "empty@example.com")
     page = c.get("/").text
-    assert "No accounts to look up" in page and 'href="/accounts"' in page
+    assert "No accounts connected" in page
 
 
 def test_plaid_keys_saved_encrypted_after_check(started):
@@ -320,3 +320,99 @@ def test_no_keys_means_no_plaid_calls(started):
     signup(c, "nokeys@example.com")
     r = c.post("/plaid/create-link-token")
     assert r.status_code == 400 and r.json()["setup_url"] == "/setup/plaid"
+
+
+# ------------------------------------------------------------------ demo
+
+def test_view_demo_gives_a_full_private_dashboard(started):
+    from datetime import date
+
+    from dateutil.relativedelta import relativedelta
+
+    from app.database import SessionLocal
+    from app.models import User
+    from app.services import get_all_balances, get_month_summary
+
+    a, b = client(), client()
+    r = a.post("/demo", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/"
+    b.post("/demo")
+
+    page = a.get("/").text
+    assert "made-up data" in page and "Exit demo" in page
+    for name in ["Everyday Checking", "Rewards Card", "Cash"]:
+        assert name in a.get("/accounts").text
+    assert a.get("/trends").status_code == 200
+
+    db = SessionLocal()
+    demos = db.query(User).filter_by(is_demo=True).order_by(User.id).all()
+    ua, ub = demos[-2], demos[-1]
+    assert len(get_all_balances(db, user_id=ua.id)) == 3
+    today = date.today()
+    first = date(today.year, today.month, 1)
+    for back in range(1, 4):  # every past month is filled in
+        m = first - relativedelta(months=back)
+        s = get_month_summary(db, m.year, m.month, user_id=ua.id)
+        assert s["expenses"] > 1000 and s["income"] > 3000, m
+    totals = [get_month_summary(db, (first - relativedelta(months=k)).year,
+                                (first - relativedelta(months=k)).month, user_id=ua.id) for k in range(4)]
+    assert any(t["living_expenses"] != t["expenses"] or t["living_income"] != t["income"] for t in totals)
+    # each visitor's demo is their own
+    a_ids = {acc.id for acc, _ in get_all_balances(db, user_id=ua.id)}
+    b_ids = {acc.id for acc, _ in get_all_balances(db, user_id=ub.id)}
+    assert a_ids and b_ids and not (a_ids & b_ids)
+    db.close()
+
+    # no Plaid in the demo
+    assert a.get("/setup/plaid", follow_redirects=False).headers["location"] == "/"
+    assert a.post("/plaid/create-link-token").status_code == 403
+    # and nobody can log into a demo account
+    assert "incorrect" in client().post("/login", data={"email": ua.email, "password": "anything-1"}).text
+
+
+def test_demo_cleanup(started):
+    from datetime import datetime, timedelta
+
+    from app.database import SessionLocal
+    from app.demo import create_demo_user, delete_stale_demo_users
+    from app.models import Account, Transaction, User
+
+    db = SessionLocal()
+    old = create_demo_user(db)
+    old.created_at = datetime.utcnow() - timedelta(hours=25)
+    db.commit()
+    old_id = old.id
+    real = User(email="real-person@example.com", password_hash="x", password_salt="y")
+    db.add(real); db.commit()
+    assert delete_stale_demo_users(db) >= 1
+    assert db.get(User, old_id) is None
+    assert db.query(Account).filter_by(user_id=old_id).count() == 0
+    assert db.get(User, real.id) is not None  # real users are never touched
+    db.close()
+
+    # Exit demo deletes that demo right away
+    c = client()
+    c.post("/demo")
+    db = SessionLocal()
+    mine = db.query(User).filter_by(is_demo=True).order_by(User.id.desc()).first().id
+    db.close()
+    c.post("/logout")
+    db = SessionLocal()
+    assert db.get(User, mine) is None
+    assert db.query(Transaction).join(Account, Transaction.account_id == Account.id).filter(Account.user_id == mine).count() == 0
+    db.close()
+
+
+def test_empty_states_depend_on_plaid_keys(started):
+    from unittest.mock import patch
+
+    import app.routers.auth as auth_routes
+
+    c = client()
+    signup(c, "empty2@example.com")
+    page = c.get("/").text
+    assert "No accounts connected" in page and "set up yet" in page and 'href="/setup/plaid"' in page
+    with patch.object(auth_routes, "create_link_token", return_value="ok"):
+        c.post("/setup/plaid", data={"client_id": FAKE_CLIENT_ID, "secret": FAKE_SECRET})
+    page = c.get("/").text
+    assert "No accounts connected" in page and "set up yet" not in page and "Add an account" in page

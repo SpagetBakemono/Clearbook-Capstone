@@ -3,9 +3,15 @@
 {% block content %}
 {% if not balances %}
 <div class="empty-state">
-  <h2>No accounts to look up</h2>
-  <p>Add a bank account (or cash) and your spending shows up here.</p>
+  <h2>No accounts connected</h2>
+  {% if not has_plaid_keys %}
+  <p>Plaid isn't set up yet, so Clearbook can't read a bank.</p>
+  <a class="btn-primary" href="/setup/plaid">Set up Plaid</a>
+  <p class="empty-state-alt">or <a href="/accounts/new">add a cash account by hand</a></p>
+  {% else %}
+  <p>Connect a bank account and your spending shows up here.</p>
   <a class="btn-primary" href="/accounts">Add an account</a>
+  {% endif %}
 </div>
 {% else %}
 {% include "_sync_alerts.html" %}
