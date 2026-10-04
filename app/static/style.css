@@ -602,6 +602,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .danger-zone { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); max-width: 480px; }
 .danger-zone p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
 .plaid-status { font-size: 12px; margin-top: 4px; }
+/* Hidden until it has a message -- its margin would nudge the row off-center. */
+.plaid-status:empty { display: none; }
 
 /* Dark theme: a hairline under the navy bar so it doesn't melt into the page. */
 :root[data-theme="dark"] .topbar { border-bottom: 1px solid var(--border); }
