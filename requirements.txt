@@ -8,3 +8,4 @@ python-dateutil>=2.9
 plaid-python>=27.0.0
 cryptography>=42
 certifi
+itsdangerous>=2.1

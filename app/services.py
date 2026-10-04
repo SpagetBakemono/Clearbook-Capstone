@@ -91,8 +91,21 @@ def get_account_balance(db: Session, account: Account) -> Decimal:
     return balance
 
 
-def get_all_balances(db: Session) -> list[tuple[Account, Decimal]]:
-    accounts = db.scalars(select(Account).order_by(Account.id)).all()
+def owned_account_ids(user_id: int):
+    """Subquery of the user's account ids. Every per-user read goes through
+    this -- a transaction belongs to a user via its account (a transfer's
+    two accounts always belong to the same user; the routes enforce it)."""
+    return select(Account.id).where(Account.user_id == user_id)
+
+
+def get_user_accounts(db: Session, user_id: int) -> list[Account]:
+    return db.scalars(select(Account).where(Account.user_id == user_id).order_by(Account.name)).all()
+
+
+def get_all_balances(db: Session, *, user_id: int) -> list[tuple[Account, Decimal]]:
+    accounts = db.scalars(
+        select(Account).where(Account.user_id == user_id).order_by(Account.id)
+    ).all()
     return [(a, get_account_balance(db, a)) for a in accounts]
 
 
@@ -122,12 +135,16 @@ def earned_amount(t: Transaction) -> Decimal:
 
 
 def get_month_summary(
-    db: Session, year: int, month: int, account_id: int | None = None
+    db: Session, year: int, month: int, account_id: int | None = None, *, user_id: int
 ) -> dict:
     start = date(year, month, 1)
     end = start + relativedelta(months=1)
 
-    query = select(Transaction).where(Transaction.date >= start, Transaction.date < end)
+    query = select(Transaction).where(
+        Transaction.date >= start,
+        Transaction.date < end,
+        Transaction.account_id.in_(owned_account_ids(user_id)),
+    )
     if account_id is not None:
         # Matches either side so a transfer shows up whichever account
         # you're looking at -- e.g. paying down a card shows as an
@@ -209,6 +226,8 @@ def get_monthly_category_trend(
     kind: CategoryKind = CategoryKind.EXPENSE,
     living_only: bool = False,
     category_id: int | None = None,
+    *,
+    user_id: int,
 ) -> dict:
     """Per-month totals broken out by category, shaped for the stacked bar
     charts on Trends: {months: [label, ...], series: [{label, color,
@@ -233,6 +252,7 @@ def get_monthly_category_trend(
         Transaction.date >= start,
         Transaction.date < end,
         Transaction.type.in_([TransactionType.EXPENSE, TransactionType.INCOME]),
+        Transaction.account_id.in_(owned_account_ids(user_id)),
     )
     if living_only:
         query = query.where(Transaction.exclude_from_living == False)  # noqa: E712
@@ -300,7 +320,7 @@ def _balance_history_boundaries(start: date, end: date, granularity: str) -> lis
 
 
 def get_balance_history(
-    db: Session, start: date, end: date, granularity: str = "month"
+    db: Session, start: date, end: date, granularity: str = "month", *, user_id: int
 ) -> list[dict]:
     """Total balance (across every account, credit cards as liabilities --
     same convention as get_total_balance) sampled at each period boundary
@@ -311,7 +331,7 @@ def get_balance_history(
     every transaction up to the cutoff (not just ones after `start`) so
     the running balance is correct even when the chart's visible range is
     capped -- see _balance_history_boundaries."""
-    accounts = db.scalars(select(Account)).all()
+    accounts = db.scalars(select(Account).where(Account.user_id == user_id)).all()
     balance = {a.id: a.opening_balance for a in accounts}
     is_liability = {a.id: a.type == AccountType.CREDIT_CARD for a in accounts}
     # A transaction dated before an account's own opening_balance_date is
@@ -324,7 +344,12 @@ def get_balance_history(
         return []
 
     txns = db.scalars(
-        select(Transaction).where(Transaction.date <= boundaries[-1]).order_by(Transaction.date)
+        select(Transaction)
+        .where(
+            Transaction.date <= boundaries[-1],
+            Transaction.account_id.in_(owned_account_ids(user_id)),
+        )
+        .order_by(Transaction.date)
     ).all()
 
     def total_balance() -> Decimal:
@@ -366,6 +391,8 @@ def _trailing_average(
     account_id: int | None,
     living_only: bool,
     as_of: date | None = None,
+    *,
+    user_id: int,
 ) -> tuple[Decimal, int]:
     """Shared windowing logic behind get_trailing_average_expense/income:
     divides by however many months of matching history actually exist
@@ -398,7 +425,11 @@ def _trailing_average(
     amount_of = spend_amount if txn_type == TransactionType.EXPENSE else earned_amount
 
     def _scope(query):
-        query = query.where(Transaction.type.in_(types), Transaction.date < window_end)
+        query = query.where(
+            Transaction.type.in_(types),
+            Transaction.date < window_end,
+            Transaction.account_id.in_(owned_account_ids(user_id)),
+        )
         if account_id is not None:
             query = query.where(Transaction.account_id == account_id)
         if living_only:
@@ -430,6 +461,8 @@ def get_trailing_average_expense(
     account_id: int | None = None,
     living_only: bool = False,
     as_of: date | None = None,
+    *,
+    user_id: int,
 ) -> tuple[Decimal, int]:
     """Smoothed monthly spend, so a single lumpy cost (tuition, etc.)
     doesn't make one month look catastrophic and the rest artificially
@@ -437,7 +470,9 @@ def get_trailing_average_expense(
     living_only=True excludes anything flagged exclude_from_living, for
     the "typical living expense" figure. as_of anchors the trailing
     window to a specific month (defaults to the current one)."""
-    return _trailing_average(db, TransactionType.EXPENSE, months, account_id, living_only, as_of)
+    return _trailing_average(
+        db, TransactionType.EXPENSE, months, account_id, living_only, as_of, user_id=user_id
+    )
 
 
 def get_trailing_average_income(
@@ -446,18 +481,25 @@ def get_trailing_average_income(
     account_id: int | None = None,
     living_only: bool = False,
     as_of: date | None = None,
+    *,
+    user_id: int,
 ) -> tuple[Decimal, int]:
     """Same idea as get_trailing_average_expense but for income --
     living_only=True excludes anything flagged exclude_from_living (a
     deposit refund, a one-off reimbursement, ...), for the "typical
     living income" figure."""
-    return _trailing_average(db, TransactionType.INCOME, months, account_id, living_only, as_of)
+    return _trailing_average(
+        db, TransactionType.INCOME, months, account_id, living_only, as_of, user_id=user_id
+    )
 
 
-def get_pending_reimbursements(db: Session, account_id: int | None = None) -> list[Transaction]:
+def get_pending_reimbursements(
+    db: Session, account_id: int | None = None, *, user_id: int
+) -> list[Transaction]:
     query = select(Transaction).where(
         Transaction.reimbursable == True,  # noqa: E712
         Transaction.reimbursement_status == ReimbursementStatus.PENDING,
+        Transaction.account_id.in_(owned_account_ids(user_id)),
     )
     if account_id is not None:
         query = query.where(Transaction.account_id == account_id)

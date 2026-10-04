@@ -407,3 +407,13 @@ button:hover { opacity: 0.9; }
 @media (prefers-reduced-motion: reduce) {
   .hero-rotator .hero-text { transition: none; }
 }
+.form-notice.is-error { border-color: rgba(201, 59, 59, 0.45); background: #fdf3f3; color: #9f2a2a; }
+
+/* Top bar: who's logged in, and Log out. */
+.topbar nav { display: flex; align-items: center; }
+.topbar-user { display: inline-flex; align-items: center; gap: 10px; margin: 0 0 0 24px; padding-left: 18px; border-left: 1px solid rgba(255, 255, 255, 0.18); }
+.topbar-user span { color: #b9c3cf; font-size: 13px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-user button { background: transparent; border: 1px solid rgba(255, 255, 255, 0.35); color: #ffffff; padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+.topbar-user button:hover { border-color: #ffffff; opacity: 1; }
+.topbar-user button:focus-visible { outline: 3px solid var(--chart-line); outline-offset: 2px; }
+@media (max-width: 760px) { .topbar-user span { display: none; } }

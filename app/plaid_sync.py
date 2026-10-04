@@ -35,7 +35,7 @@ from app.models import (
     TransactionType,
 )
 from app.plaid_client import describe_error, get_balance, sync_transactions
-from app.services import get_account_balance, log_import_capture
+from app.services import get_account_balance, log_import_capture, owned_account_ids
 from app.token_crypto import decrypt_token
 
 # Matching a Plaid transaction to one you logged by hand. Banks post
@@ -112,12 +112,14 @@ def _is_transferish(t: dict) -> bool:
     return t["category_detailed"] == CARD_PAYMENT or t["category_primary"] in TRANSFER_PRIMARIES
 
 
-def _pick_category(db: Session, t: dict, txn_type: TransactionType) -> int | None:
-    # Your own past choice for this merchant wins over Plaid's guess.
+def _pick_category(db: Session, account: Account, t: dict, txn_type: TransactionType) -> int | None:
+    # Your own past choice for this merchant wins over Plaid's guess --
+    # yours only, never another user's.
     learned = db.scalar(
         select(Transaction.category_id)
         .where(Transaction.note == t["merchant"], Transaction.category_id.isnot(None),
-               Transaction.type == txn_type)
+               Transaction.type == txn_type,
+               Transaction.account_id.in_(owned_account_ids(account.user_id)))
         .order_by(Transaction.date.desc())
         .limit(1)
     )
@@ -151,7 +153,7 @@ def _is_refund(account: Account, t: dict) -> bool:
     return t["merchant"].lower().startswith("zelle") or t["category_primary"] == "TRANSFER_IN"
 
 
-def _refund_category(db: Session, t: dict) -> int | None:
+def _refund_category(db: Session, account: Account, t: dict) -> int | None:
     """The expense category a refund comes off: whatever you last filed
     this merchant's spending under (an Uber refund -> Transport), else
     Plaid's guess. A payback from a friend has neither, so it stays
@@ -159,7 +161,8 @@ def _refund_category(db: Session, t: dict) -> int | None:
     learned = db.scalar(
         select(Transaction.category_id)
         .where(Transaction.note == t["merchant"], Transaction.category_id.isnot(None),
-               Transaction.type == TransactionType.EXPENSE)
+               Transaction.type == TransactionType.EXPENSE,
+               Transaction.account_id.in_(owned_account_ids(account.user_id)))
         .order_by(Transaction.date.desc())
         .limit(1)
     )
@@ -237,6 +240,7 @@ def _pair_transfer(db: Session, account: Account, t: dict) -> bool:
         # The card saw the payment first and it was posted as income.
         row = db.scalar(
             select(Transaction).join(Account, Transaction.account_id == Account.id).where(
+                Account.user_id == account.user_id,
                 Account.type == AccountType.CREDIT_CARD,
                 Transaction.account_id != account.id,
                 Transaction.type == TransactionType.INCOME,
@@ -257,6 +261,7 @@ def _pair_transfer(db: Session, account: Account, t: dict) -> bool:
     # waiting for its destination.
     row = db.scalar(
         select(Transaction).where(
+            Transaction.account_id.in_(owned_account_ids(account.user_id)),
             Transaction.account_id != account.id,
             Transaction.type == TransactionType.TRANSFER,
             Transaction.to_account_id.is_(None),
@@ -282,6 +287,7 @@ def _funded_wallet(db: Session, account: Account, t: dict) -> Account | None:
     merchant = t["merchant"].lower()
     for other in db.scalars(
         select(Account).where(
+            Account.user_id == account.user_id,
             Account.id != account.id,
             Account.plaid_access_token.isnot(None),
             Account.type != AccountType.CREDIT_CARD,
@@ -335,9 +341,9 @@ def _apply_added(db: Session, account: Account, t: dict, adopt_only: bool) -> bo
     if txn_type == TransactionType.TRANSFER:
         category_id = None
     elif is_refund:
-        category_id = _refund_category(db, t)
+        category_id = _refund_category(db, account, t)
     else:
-        category_id = _pick_category(db, t, txn_type)
+        category_id = _pick_category(db, account, t, txn_type)
 
     db.add(
         Transaction(
@@ -473,7 +479,7 @@ def sync_plaid_account(db: Session, account: Account) -> int:
     return created
 
 
-def get_sync_alerts(db: Session) -> list[str]:
+def get_sync_alerts(db: Session, *, user_id: int) -> list[str]:
     """Only what *you* have to fix: a bank asking you to sign in again.
     The app's whole point is that syncing takes care of itself, so
     everything else stays off the Dashboard -- a network blip just retries
@@ -483,7 +489,7 @@ def get_sync_alerts(db: Session) -> list[str]:
     # list() snapshots it -- the sync thread may be writing to it.
     for account_id, error in list(LAST_SYNC_ERRORS.items()):
         account = db.get(Account, account_id)
-        if account and error.split(":", 1)[0] in NEEDS_USER_ERRORS:
+        if account and account.user_id == user_id and error.split(":", 1)[0] in NEEDS_USER_ERRORS:
             alerts.append(
                 f"{account.name} needs you to sign in to your bank again -- "
                 "Disconnect it on the Accounts page, then Connect it again."
@@ -491,14 +497,16 @@ def get_sync_alerts(db: Session) -> list[str]:
     return alerts
 
 
-def get_balance_drift(db: Session) -> list[str]:
+def get_balance_drift(db: Session, *, user_id: int) -> list[str]:
     """Linked accounts whose balance has disagreed with the bank on every
     sync for DRIFT_GRACE_DAYS -- long enough that it isn't a charge still
     settling, so a transaction really is missing or doubled. Shown quietly
     on the Accounts page only."""
     notes = []
     cutoff = datetime.utcnow() - timedelta(days=DRIFT_GRACE_DAYS)
-    for account in db.scalars(select(Account).where(Account.plaid_access_token.isnot(None))):
+    for account in db.scalars(
+        select(Account).where(Account.user_id == user_id, Account.plaid_access_token.isnot(None))
+    ):
         last = db.scalar(
             select(ImportCapture)
             .where(ImportCapture.account_id == account.id)
@@ -521,12 +529,12 @@ def get_balance_drift(db: Session) -> list[str]:
     return notes
 
 
-def get_last_synced(db: Session) -> datetime | None:
-    """When bank data was last pulled for any linked account."""
+def get_last_synced(db: Session, *, user_id: int) -> datetime | None:
+    """When bank data was last pulled for any of the user's linked accounts."""
     return db.scalar(
         select(func.max(ImportCapture.created_at))
         .join(Account, Account.id == ImportCapture.account_id)
-        .where(Account.plaid_access_token.isnot(None))
+        .where(Account.user_id == user_id, Account.plaid_access_token.isnot(None))
     )
 
 
@@ -546,19 +554,25 @@ def sync_account_recording_errors(db: Session, account: Account) -> str | None:
     return None
 
 
-def sync_all_linked_accounts() -> None:
-    """Syncs every linked account. Uses its own session -- request
-    sessions belong to request threads."""
+def sync_all_linked_accounts(user_id: int | None = None) -> None:
+    """Syncs every linked account (or just one user's). Uses its own
+    session -- request sessions belong to request threads."""
     db = SessionLocal()
     try:
-        accounts = db.scalars(
-            select(Account).where(Account.plaid_access_token.isnot(None))
-        ).all()
+        query = select(Account).where(Account.plaid_access_token.isnot(None))
+        if user_id is not None:
+            query = query.where(Account.user_id == user_id)
+        accounts = db.scalars(query).all()
         for account in accounts:
             error = sync_account_recording_errors(db, account)
             print(f"[plaid] {account.name}: {'FAILED -- ' + error if error else 'synced'}", flush=True)
     finally:
         db.close()
+
+
+def sync_user_accounts(user_id: int) -> None:
+    """Run after a user logs in, so their numbers are fresh."""
+    sync_all_linked_accounts(user_id)
 
 
 def sync_periodically() -> None:

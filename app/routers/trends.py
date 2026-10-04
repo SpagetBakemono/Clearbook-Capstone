@@ -5,9 +5,10 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth import require_user
 from app.database import get_db
-from app.models import Category, CategoryKind, Transaction, TransactionType
-from app.services import get_balance_history, get_monthly_category_trend
+from app.models import Category, CategoryKind, Transaction, TransactionType, User
+from app.services import get_balance_history, get_monthly_category_trend, owned_account_ids
 from app.templating import templates
 
 router = APIRouter()
@@ -33,6 +34,7 @@ def trends(
     category_id: str | None = None,
     start: str | None = None,
     end: str | None = None,
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
     categories = db.scalars(
@@ -53,7 +55,10 @@ def trends(
     start_month = _parse_month(start)
     if start_month is None:
         earliest_expense = db.scalar(
-            select(func.min(Transaction.date)).where(Transaction.type == TransactionType.EXPENSE)
+            select(func.min(Transaction.date)).where(
+                Transaction.type == TransactionType.EXPENSE,
+                Transaction.account_id.in_(owned_account_ids(user.id)),
+            )
         )
         start_month = (
             date(earliest_expense.year, earliest_expense.month, 1)
@@ -75,7 +80,13 @@ def trends(
     # user reads first, Total is the drill-out.
     def stacked(kind, living_only, category_id=None):
         return get_monthly_category_trend(
-            db, start_month, months, kind=kind, living_only=living_only, category_id=category_id
+            db,
+            start_month,
+            months,
+            kind=kind,
+            living_only=living_only,
+            category_id=category_id,
+            user_id=user.id,
         )
 
     charts = {
@@ -87,7 +98,7 @@ def trends(
     for g, _ in GRANULARITIES:
         charts[f"balance_{g}"] = [
             {"date": p["date"].isoformat(), "balance": float(p["balance"])}
-            for p in get_balance_history(db, start_month, end_month, g)
+            for p in get_balance_history(db, start_month, end_month, g, user_id=user.id)
         ]
 
     return templates.TemplateResponse(

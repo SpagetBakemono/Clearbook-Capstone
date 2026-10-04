@@ -3,8 +3,9 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.auth import require_user
 from app.database import get_db
-from app.models import Account
+from app.models import User
 from app.plaid_client import (
     create_link_token,
     describe_error,
@@ -13,6 +14,7 @@ from app.plaid_client import (
     remove_item,
 )
 from app.plaid_sync import LAST_SYNC_ERRORS, sync_account_recording_errors
+from app.routers.accounts import owned_account
 from app.token_crypto import decrypt_token, encrypt_token
 
 router = APIRouter()
@@ -25,7 +27,7 @@ def _plaid_error(e: Exception) -> JSONResponse:
 
 
 @router.post("/plaid/create-link-token")
-def plaid_create_link_token():
+def plaid_create_link_token(user: User = Depends(require_user)):
     try:
         return {"link_token": create_link_token()}
     except Exception as e:  # SDK, network (TLS/DNS/timeout), or missing config
@@ -42,8 +44,10 @@ class ExchangeRequest(BaseModel):
 
 
 @router.post("/plaid/exchange")
-def plaid_exchange(body: ExchangeRequest, db: Session = Depends(get_db)):
-    account = db.get(Account, body.account_id)
+def plaid_exchange(
+    body: ExchangeRequest, user: User = Depends(require_user), db: Session = Depends(get_db)
+):
+    account = owned_account(db, user, body.account_id)
     if account is None:
         return JSONResponse({"error": "That account no longer exists."}, status_code=400)
 
@@ -81,8 +85,10 @@ def plaid_exchange(body: ExchangeRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/accounts/{account_id}/plaid/sync")
-def plaid_sync(account_id: int, db: Session = Depends(get_db)):
-    account = db.get(Account, account_id)
+def plaid_sync(
+    account_id: int, user: User = Depends(require_user), db: Session = Depends(get_db)
+):
+    account = owned_account(db, user, account_id)
     if account is None or not account.plaid_access_token:
         return RedirectResponse(url="/accounts", status_code=303)
     # A failure or a balance mismatch shows in the alerts banner there.
@@ -91,10 +97,12 @@ def plaid_sync(account_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/accounts/{account_id}/plaid/disconnect")
-def plaid_disconnect(account_id: int, db: Session = Depends(get_db)):
+def plaid_disconnect(
+    account_id: int, user: User = Depends(require_user), db: Session = Depends(get_db)
+):
     """Revokes the connection at Plaid, then forgets it locally. Also how
     you relink an account against real data after testing in sandbox."""
-    account = db.get(Account, account_id)
+    account = owned_account(db, user, account_id)
     if account:
         if account.plaid_access_token:
             try:

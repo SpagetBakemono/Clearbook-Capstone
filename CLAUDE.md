@@ -24,7 +24,7 @@ never be touched from here).
    signed-out screens (`/landing`, `/login`, `/signup` in `_split.html`
    -- navy brand panel + action panel; logo is the serif "Clearbook"
    text wordmark). Forms show "coming soon" until auth (#2).
-2. Users + auth pages; `Account.user_id`; per-user query scoping + tests.
+2. ~~Users + auth pages; `Account.user_id`; per-user query scoping + tests.~~ Done.
 3. Per-user Plaid credentials through plaid_client / plaid_routes /
    plaid_sync.
 4. Onboarding (/welcome): keys -> connect sandbox bank -> auto-created
@@ -160,6 +160,22 @@ a Chrome capture extension, and Gemini-parsed statement paste with a
 review queue (`PendingImport`; its empty `pending_imports` table is still
 in the db, unused). Both are in git history if a non-Plaid bank ever
 needs them.
+
+## Users and data isolation
+
+- `User` (email lowercased, scrypt hash + salt -- `app/auth.py`); session
+  is Starlette's signed cookie `clearbook_session` (SESSION_SECRET, app
+  refuses to start without a 32+ char one; HTTPS-only when `VERCEL` is set).
+- **Every app route depends on `require_user`**; logged-out GETs redirect
+  to `/landing`, other requests get 401.
+- **Every data read is scoped to the current user.** Services take a
+  required keyword `user_id` and filter transactions through
+  `services.owned_account_ids(user_id)`; routes fetch single rows via
+  `owned_account()` / `owned_transaction()` (404 if not yours -- same as
+  missing, so ids can't be probed). Sync matching (pairing, Venmo top-ups,
+  learned categories) stays within the same user's accounts. Any new query
+  must do the same -- `tests/test_auth_and_isolation.py` checks it.
+- Run tests: `./.venv/bin/python -m pytest -q` (throwaway SQLite).
 
 ## Security
 

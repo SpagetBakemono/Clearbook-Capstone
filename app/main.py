@@ -1,9 +1,13 @@
+import os
 import threading
 
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+
+from app.auth import LoginRequired
 
 from app.database import Base, SessionLocal, engine
 from app.plaid_sync import sync_periodically
@@ -37,6 +41,35 @@ async def reject_cross_site_writes(request: Request, call_next):
             return PlainTextResponse("Cross-site request blocked.", status_code=403)
     return await call_next(request)
 
+
+@app.exception_handler(LoginRequired)
+async def send_to_landing(request: Request, exc: LoginRequired):
+    # A page visit goes to the landing page; anything else (form posts,
+    # the Plaid fetch calls) just gets a plain "log in first".
+    if request.method == "GET":
+        return RedirectResponse(url="/landing", status_code=303)
+    return PlainTextResponse("Log in first.", status_code=401)
+
+
+# Login sessions: a cookie holding the user id, signed with SESSION_SECRET
+# so it can't be forged or edited. Refuse to start without a real secret --
+# a default one would let anyone mint a login cookie.
+SESSION_SECRET = os.getenv("SESSION_SECRET", "")
+if len(SESSION_SECRET) < 32:
+    raise RuntimeError(
+        "SESSION_SECRET must be set to a long random string (32+ characters) -- "
+        "see .env.example."
+    )
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET,
+    session_cookie="clearbook_session",
+    max_age=14 * 24 * 3600,
+    same_site="lax",
+    # Vercel sets VERCEL=1; there the cookie is HTTPS-only. Locally the
+    # dev server is plain http://127.0.0.1, so it can't be.
+    https_only=bool(os.getenv("VERCEL")),
+)
 
 # DNS rebinding guard: a malicious domain can re-resolve itself to
 # 127.0.0.1 and slip past same-origin rules entirely. It still has to

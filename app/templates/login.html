@@ -7,7 +7,7 @@
 {% block panel %}
 <h2 class="panel-title">Log in</h2>
 <p class="panel-sub">Good to see you again.</p>
-{% if notice %}<p class="form-notice" role="status">{{ notice }}</p>{% endif %}
+{% if error %}<p class="form-notice is-error" role="alert">{{ error }}</p>{% endif %}
 <form class="auth-form" method="post" action="/login">
   <label for="email">Email</label>
   <input id="email" name="email" type="email" autocomplete="email" required value="{{ email or '' }}" />

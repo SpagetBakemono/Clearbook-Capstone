@@ -4,7 +4,9 @@ from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
+from app.auth import require_user
 from app.database import get_db
+from app.models import User
 from app.services import (
     get_all_balances,
     get_month_summary,
@@ -35,6 +37,7 @@ def dashboard(
     request: Request,
     account_id: str | None = None,
     month: str | None = None,
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
     today = date.today()
@@ -44,7 +47,7 @@ def dashboard(
     # empty page that looks broken.
     selected_month = min(_parse_month(month) or this_month, this_month)
 
-    balances = get_all_balances(db)
+    balances = get_all_balances(db, user_id=user.id)
     total_balance = get_total_balance(balances)
 
     # account_id arrives as a string because the "All accounts" option's
@@ -57,24 +60,24 @@ def dashboard(
     effective_account_id = selected_account.id if selected_account else None
 
     summary = get_month_summary(
-        db, selected_month.year, selected_month.month, effective_account_id
+        db, selected_month.year, selected_month.month, effective_account_id, user_id=user.id
     )
 
     expense_avg, expense_avg_months = get_trailing_average_expense(
-        db, account_id=effective_account_id, as_of=selected_month
+        db, account_id=effective_account_id, as_of=selected_month, user_id=user.id
     )
     living_expense_avg, living_expense_avg_months = get_trailing_average_expense(
-        db, account_id=effective_account_id, living_only=True, as_of=selected_month
+        db, account_id=effective_account_id, living_only=True, as_of=selected_month, user_id=user.id
     )
     income_avg, income_avg_months = get_trailing_average_income(
-        db, account_id=effective_account_id, as_of=selected_month
+        db, account_id=effective_account_id, as_of=selected_month, user_id=user.id
     )
     living_income_avg, living_income_avg_months = get_trailing_average_income(
-        db, account_id=effective_account_id, living_only=True, as_of=selected_month
+        db, account_id=effective_account_id, living_only=True, as_of=selected_month, user_id=user.id
     )
 
-    pending = get_pending_reimbursements(db, effective_account_id)
-    last_synced = get_last_synced(db)
+    pending = get_pending_reimbursements(db, effective_account_id, user_id=user.id)
+    last_synced = get_last_synced(db, user_id=user.id)
 
     max_category = max(summary["by_category"].values()) if summary["by_category"] else 1
     max_category_living = (
@@ -104,7 +107,7 @@ def dashboard(
             "pending": pending,
             "max_category": max_category,
             "max_category_living": max_category_living,
-            "sync_alerts": get_sync_alerts(db),
+            "sync_alerts": get_sync_alerts(db, user_id=user.id),
             "last_synced": relative_time(last_synced) if last_synced else None,
             "month_name": selected_month.strftime("%B %Y"),
             "month_value": selected_month.strftime("%Y-%m"),

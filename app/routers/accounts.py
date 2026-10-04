@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from app.auth import require_user
 from app.database import get_db
-from app.models import Account, AccountType
+from app.models import Account, AccountType, User
 from app.plaid_sync import get_balance_drift, get_last_synced, get_sync_alerts
 from app.services import get_all_balances, relative_time
 from app.templating import templates
@@ -14,24 +15,33 @@ from app.templating import templates
 router = APIRouter()
 
 
+def owned_account(db: Session, user: User, account_id: int | None) -> Account | None:
+    """The account if it exists AND belongs to this user -- otherwise None,
+    exactly as if it didn't exist (so ids can't be probed)."""
+    account = db.get(Account, account_id) if account_id is not None else None
+    return account if account is not None and account.user_id == user.id else None
+
+
 @router.get("/accounts")
-def list_accounts(request: Request, db: Session = Depends(get_db)):
-    balances = get_all_balances(db)
-    last_synced = get_last_synced(db)
+def list_accounts(
+    request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)
+):
+    balances = get_all_balances(db, user_id=user.id)
+    last_synced = get_last_synced(db, user_id=user.id)
     return templates.TemplateResponse(
         request,
         "accounts.html",
         {
             "balances": balances,
-            "sync_alerts": get_sync_alerts(db),
-            "balance_drift": get_balance_drift(db),
+            "sync_alerts": get_sync_alerts(db, user_id=user.id),
+            "balance_drift": get_balance_drift(db, user_id=user.id),
             "last_synced": relative_time(last_synced) if last_synced else None,
         },
     )
 
 
 @router.get("/accounts/new")
-def new_account_form(request: Request):
+def new_account_form(request: Request, user: User = Depends(require_user)):
     return templates.TemplateResponse(
         request,
         "account_new.html",
@@ -45,6 +55,7 @@ def create_account(
     type: str = Form(...),
     opening_balance: str = Form("0"),
     opening_balance_date: str = Form(...),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
     try:
@@ -53,6 +64,7 @@ def create_account(
         balance = Decimal(0)
 
     account = Account(
+        user_id=user.id,
         name=name.strip(),
         type=AccountType(type),
         opening_balance=balance,
@@ -64,8 +76,13 @@ def create_account(
 
 
 @router.get("/accounts/{account_id}/edit")
-def edit_account_form(account_id: int, request: Request, db: Session = Depends(get_db)):
-    account = db.get(Account, account_id)
+def edit_account_form(
+    account_id: int,
+    request: Request,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    account = owned_account(db, user, account_id)
     if account is None:
         return RedirectResponse(url="/accounts", status_code=303)
     return templates.TemplateResponse(
@@ -82,9 +99,10 @@ def update_account(
     type: str = Form(...),
     opening_balance: str = Form("0"),
     opening_balance_date: str = Form(...),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    account = db.get(Account, account_id)
+    account = owned_account(db, user, account_id)
     if account is None:
         return RedirectResponse(url="/accounts", status_code=303)
 

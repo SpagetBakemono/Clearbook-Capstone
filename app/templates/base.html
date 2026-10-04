@@ -18,6 +18,12 @@
       <a href="/trends" {{ 'class=active' if _path.startswith('/trends') }}>Trends</a>
       <a href="/accounts" {{ 'class=active' if _path.startswith('/accounts') }}>Accounts</a>
       <a href="/manual" {{ 'class=active' if _path.startswith('/manual') or _path.startswith('/transactions') }}>Manual</a>
+      {% if request.state.user is defined %}
+      <form method="post" action="/logout" class="topbar-user">
+        <span title="Logged in">{{ request.state.user.email }}</span>
+        <button type="submit">Log out</button>
+      </form>
+      {% endif %}
     </nav>
   </header>
   <main class="container">

@@ -53,10 +53,32 @@ class CategoryKind(str, enum.Enum):
     EXPENSE = "expense"
 
 
+class User(Base):
+    """One person using Clearbook. Passwords are never stored: only a
+    salted scrypt hash (see app/auth.py). Everything else a user owns hangs
+    off their accounts."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Always stored lowercased, so "A@x.com" and "a@x.com" are one account.
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(128))
+    password_salt: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    accounts: Mapped[list["Account"]] = relationship(back_populates="user")
+
+
 class Account(Base):
     __tablename__ = "accounts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Whose account this is. Transactions belong to accounts, so this one
+    # column is what keeps every user's data separate (see
+    # services.owned_account_ids).
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user: Mapped["User"] = relationship(back_populates="accounts")
     name: Mapped[str] = mapped_column(String(100))
     type: Mapped[AccountType] = mapped_column(SAEnum(AccountType))
     opening_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
