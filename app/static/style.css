@@ -5,6 +5,7 @@
    family and validated separately -- see CATEGORY_COLOR_SLOTS in
    services.py. --danger stays a true red: it's a status color. */
 :root {
+  color-scheme: light;
   --bg: #f3f3f1;
   --surface: #ffffff;
   --border: #dfe1dd;
@@ -15,17 +16,101 @@
   --accent: #1d8b65;
   --accent-button: #177a59;  /* palette green, deepened so white text clears AA (5.3:1) */
   --accent-strong: #153d35;
+  --link: #153d35;
   --chart-line: #2c9d90;
   --grid: #eceeea;
   --good: #1d8b65;
   --danger: #c93b3b;
+  --expense: #b42f2f;        /* 6.2:1 on white */
+  --income: #17795a;         /* 5.4:1 on white */
+  --hover: rgba(19, 36, 59, 0.06);
+  --banner-bg: #e6f2ee;
+  --banner-border: #cfe5dc;
+  --banner-text: #153d35;
+  --error-bg: #fdf3f3;
+  --error-border: rgba(201, 59, 59, 0.45);
+  --error-text: #9f2a2a;
+  --shadow: 0 4px 16px rgba(19, 36, 59, 0.12);
+  /* Category colors for the stacked Trends charts (services.py emits
+     var(--cat-N)); validated with the dataviz script on #ffffff. */
+  --cat-1: #0d5c91; --cat-2: #2c9d90; --cat-3: #5c39b5; --cat-4: #77b30e;
+  --cat-5: #0e78e4; --cat-6: #1d8b65; --cat-7: #9e8bf7; --cat-8: #4a620b;
   --radius: 10px;
   /* Brand + headlines: the platform serif (New York on Apple devices,
      Georgia elsewhere) -- classy without downloading a web font. */
   --font-display: ui-serif, "New York", "Iowan Old Style", Georgia, serif;
 }
 
+/* Dark theme: used when the visitor picks it (data-theme="dark"), or when
+   their system is dark and they haven't picked light. Same palette family,
+   lightened where it sits on dark surfaces; every text pair re-checked
+   for AA, and the category colors re-validated on #172231. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1722;
+  --surface: #172231;
+  --border: #2a3a4f;
+  --text: #e7ecf2;
+  --muted: #95a3b3;          /* 6.2:1 on --surface */
+  --secondary: #c2ccd8;
+  --accent: #2a9d74;
+  --accent-button: #177a59;
+  --accent-strong: #0f5a43;
+  --link: #6fd1aa;
+  --chart-line: #46c2b2;
+  --grid: #223044;
+  --good: #5fd0a3;
+  --danger: #f28b8b;
+  --expense: #f28b8b;        /* 6.8:1 on --surface */
+  --income: #5fd0a3;         /* 8.4:1 on --surface */
+  --hover: rgba(255, 255, 255, 0.06);
+  --banner-bg: #123129;
+  --banner-border: #1d4a3d;
+  --banner-text: #a8e3cc;
+  --error-bg: #3a1d22;
+  --error-border: #6b2f37;
+  --error-text: #f6b1b1;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --cat-1: #2777b3; --cat-2: #0fa99a; --cat-3: #8265e4; --cat-4: #6ea60b;
+  --cat-5: #0a72da; --cat-6: #1d966d; --cat-7: #9480eb; --cat-8: #5f7a1f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1722;
+    --surface: #172231;
+    --border: #2a3a4f;
+    --text: #e7ecf2;
+    --muted: #95a3b3;          /* 6.2:1 on --surface */
+    --secondary: #c2ccd8;
+    --accent: #2a9d74;
+    --accent-button: #177a59;
+    --accent-strong: #0f5a43;
+    --link: #6fd1aa;
+    --chart-line: #46c2b2;
+    --grid: #223044;
+    --good: #5fd0a3;
+    --danger: #f28b8b;
+    --expense: #f28b8b;        /* 6.8:1 on --surface */
+    --income: #5fd0a3;         /* 8.4:1 on --surface */
+    --hover: rgba(255, 255, 255, 0.06);
+    --banner-bg: #123129;
+    --banner-border: #1d4a3d;
+    --banner-text: #a8e3cc;
+    --error-bg: #3a1d22;
+    --error-border: #6b2f37;
+    --error-text: #f6b1b1;
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    --cat-1: #2777b3; --cat-2: #0fa99a; --cat-3: #8265e4; --cat-4: #6ea60b;
+    --cat-5: #0a72da; --cat-6: #1d966d; --cat-7: #9480eb; --cat-8: #5f7a1f;
+  }
+}
+
+
 * { box-sizing: border-box; }
+
+/* Links follow the theme (default browser blue/purple is unreadable on dark). */
+a { color: var(--link); }
 
 body {
   margin: 0;
@@ -140,6 +225,8 @@ form.form-card {
 
 label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px; }
 input, select, textarea {
+  background: var(--surface);
+  color: var(--text);
   width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--border);
@@ -149,8 +236,8 @@ input, select, textarea {
 }
 
 button {
-  background: var(--accent);
-  color: white;
+  background: var(--accent-button);
+  color: #ffffff;
   border: none;
   padding: 10px 16px;
   border-radius: 6px;
@@ -196,7 +283,7 @@ button:hover { opacity: 0.9; }
   width: auto;
   line-height: 1.6;
 }
-.btn-sm-accent { background: var(--accent); color: white; border: none; }
+.btn-sm-accent { background: var(--accent-button); color: #ffffff; border: none; }
 .btn-sm-accent:hover { opacity: 0.9; }
 .btn-sm-outline { background: transparent; color: var(--secondary); border: 1px solid var(--border); }
 .btn-sm-outline:hover { border-color: var(--muted); color: var(--text); }
@@ -242,7 +329,7 @@ button:hover { opacity: 0.9; }
 #inc_total:checked ~ .segmented label[for="inc_total"],
 #bal_day:checked ~ .segmented label[for="bal_day"],
 #bal_week:checked ~ .segmented label[for="bal_week"],
-#bal_month:checked ~ .segmented label[for="bal_month"] { background: var(--accent); color: #ffffff; }
+#bal_month:checked ~ .segmented label[for="bal_month"] { background: var(--accent-button); color: #ffffff; }
 
 #dash_living:checked ~ [data-for="dash_total"],
 #dash_total:checked ~ [data-for="dash_living"],
@@ -291,7 +378,7 @@ button:hover { opacity: 0.9; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(19, 36, 59, 0.12);
+  box-shadow: var(--shadow);
   font-size: 12px;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -347,7 +434,7 @@ button:hover { opacity: 0.9; }
 
 .split-panel {
   background: var(--bg);
-  border-left: 1px solid rgba(19, 36, 59, 0.18);
+  border-left: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -358,7 +445,7 @@ button:hover { opacity: 0.9; }
 .panel-sub { color: var(--muted); font-size: 15px; margin: 0 0 28px; }
 .panel-actions { display: grid; gap: 12px; }
 .panel-switch { margin: 20px 0 0; font-size: 14px; color: var(--muted); text-align: center; }
-.panel-switch a { color: var(--accent-strong); font-weight: 600; }
+.panel-switch a { color: var(--link); font-weight: 600; }
 
 .btn-primary, .btn-secondary {
   display: flex;
@@ -376,8 +463,8 @@ button:hover { opacity: 0.9; }
 }
 .btn-primary { background: var(--accent-button); color: #ffffff; border: 1px solid var(--accent-button); }
 .btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); opacity: 1; }
-.btn-secondary { background: transparent; color: var(--navy); border: 1px solid var(--navy); }
-.btn-secondary:hover { background: rgba(19, 36, 59, 0.06); }
+.btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--text); }
+.btn-secondary:hover { background: var(--hover); }
 .btn-primary:focus-visible, .btn-secondary:focus-visible, .auth-form input:focus-visible, .panel-switch a:focus-visible, .wordmark:focus-visible {
   outline: 3px solid var(--chart-line);
   outline-offset: 2px;
@@ -393,7 +480,7 @@ button:hover { opacity: 0.9; }
   .split { grid-template-columns: 1fr; min-height: 100vh; }
   .split-hero { padding: 72px 16px 40px; }
   .wordmark { top: 24px; left: 16px; }
-  .split-panel { border-left: none; border-top: 1px solid rgba(19, 36, 59, 0.18); padding: 32px 16px 48px; align-items: flex-start; }
+  .split-panel { border-left: none; border-top: 1px solid var(--border); padding: 32px 16px 48px; align-items: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
   .btn-primary, .btn-secondary { transition: none; }
@@ -407,7 +494,7 @@ button:hover { opacity: 0.9; }
 @media (prefers-reduced-motion: reduce) {
   .hero-rotator .hero-text { transition: none; }
 }
-.form-notice.is-error { border-color: rgba(201, 59, 59, 0.45); background: #fdf3f3; color: #9f2a2a; }
+.form-notice.is-error { border-color: var(--error-border); background: var(--error-bg); color: var(--error-text); }
 
 /* Top bar: who's logged in, and Log out. */
 .topbar nav { display: flex; align-items: center; }
@@ -420,7 +507,7 @@ button:hover { opacity: 0.9; }
 
 /* Plaid setup: numbered walkthrough above the key fields. */
 .setup-steps { margin: 0 0 20px; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; line-height: 1.5; color: var(--secondary); }
-.setup-steps a { color: var(--accent-strong); font-weight: 600; }
+.setup-steps a { color: var(--link); font-weight: 600; }
 .setup-steps strong { color: var(--text); font-weight: 600; }
 .setup-note { margin: 14px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
 
@@ -433,23 +520,22 @@ button:hover { opacity: 0.9; }
 /* "View a demo" under the landing buttons: quiet, text-style. */
 .demo-link { margin: 18px 0 0; text-align: center; }
 .demo-link button { background: none; border: none; padding: 4px; width: auto; color: var(--muted); font-size: 14px; cursor: pointer; }
-.demo-link button span { color: var(--accent-strong); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.demo-link button span { color: var(--link); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .demo-link button:hover { opacity: 1; }
-.demo-link button:hover span { color: var(--accent); }
+.demo-link button:hover span { text-decoration-thickness: 2px; }
 .demo-link button:focus-visible { outline: 3px solid var(--chart-line); outline-offset: 2px; border-radius: 4px; }
 
 /* Slim banner on every demo page. */
-.demo-banner { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; padding: 9px 16px; background: #e6f2ee; border-bottom: 1px solid #cfe5dc; font-size: 14px; color: var(--accent-strong); }
+.demo-banner { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; padding: 9px 16px; background: var(--banner-bg); border-bottom: 1px solid var(--banner-border); font-size: 14px; color: var(--banner-text); }
 .demo-banner-cta { background: var(--accent-button); color: #ffffff; padding: 5px 12px; border-radius: 6px; font-weight: 600; font-size: 13px; text-decoration: none; }
 .demo-banner-cta:hover { background: var(--accent-strong); }
 .empty-state-alt { margin: 16px 0 0 !important; font-size: 14px; }
-.empty-state-alt a { color: var(--accent-strong); font-weight: 600; }
+.empty-state-alt a { color: var(--link); font-weight: 600; }
 
 /* ---- Dashboard ------------------------------------------------------- */
 /* Money colors: spending reads red, earning reads green. Both clear AA on
    white cards (--expense 6.2:1, --income 5.4:1; on the page background
    5.6:1 and 4.8:1). */
-:root { --expense: #b42f2f; --income: #17795a; }
 .amount-expense { color: var(--expense); }
 .amount-income { color: var(--income); }
 
@@ -504,3 +590,33 @@ button:hover { opacity: 0.9; }
   .topbar nav a { margin-left: 0; }
   .topbar-user { margin-left: 0; padding-left: 0; border-left: none; }
 }
+
+/* Accounts: bank sync status + actions, one tidy cell. */
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.sync-state { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.sync-state.is-on { color: var(--text); }
+.sync-state.is-on::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--income); }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.sync-actions form { margin: 0; }
+.btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+.plaid-status { font-size: 12px; margin-top: 4px; }
+
+/* Dark theme: a hairline under the navy bar so it doesn't melt into the page. */
+:root[data-theme="dark"] .topbar { border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .topbar { border-bottom: 1px solid var(--border); } }
+
+/* Theme toggle: a sun/moon button at the very top. */
+.theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: transparent; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 8px; color: #ffffff; cursor: pointer; }
+.theme-toggle:hover { border-color: #ffffff; opacity: 1; }
+.theme-toggle:focus-visible { outline: 3px solid var(--chart-line); outline-offset: 2px; }
+.theme-toggle svg { width: 16px; height: 16px; }
+.theme-toggle .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: block; }
+  :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: none; }
+}
+/* On the signed-out screens it sits in the panel's top-right corner. */
+.split-panel { position: relative; }
+.split-panel .theme-toggle { position: absolute; top: 20px; right: 20px; color: var(--text); border-color: var(--border); }

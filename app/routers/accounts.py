@@ -3,11 +3,12 @@ from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import require_user
 from app.database import get_db
-from app.models import Account, AccountType, User
+from app.models import Account, AccountType, ImportCapture, User
 from app.plaid_sync import get_balance_drift, get_last_synced, get_sync_alerts
 from app.services import get_all_balances, relative_time
 from app.templating import templates
@@ -28,12 +29,22 @@ def list_accounts(
 ):
     balances = get_all_balances(db, user_id=user.id)
     last_synced = get_last_synced(db, user_id=user.id)
+    # Each linked account's own last sync, in words ("2 hours ago").
+    last_sync_by_account = {
+        account_id: relative_time(when)
+        for account_id, when in db.execute(
+            select(ImportCapture.account_id, func.max(ImportCapture.created_at))
+            .where(ImportCapture.account_id.in_([a.id for a, _ in balances]))
+            .group_by(ImportCapture.account_id)
+        ).all()
+    }
     return templates.TemplateResponse(
         request,
         "accounts.html",
         {
             "balances": balances,
             "has_plaid_keys": bool(user.plaid_secret),
+            "last_sync_by_account": last_sync_by_account,
             "sync_alerts": get_sync_alerts(db, user_id=user.id),
             "balance_drift": get_balance_drift(db, user_id=user.id),
             "last_synced": relative_time(last_synced) if last_synced else None,

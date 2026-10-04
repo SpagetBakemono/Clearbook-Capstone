@@ -145,8 +145,9 @@
         // 2px surface gap between stacked segments (not under the bottom one).
         var gap = j > 0 ? 2 : 0;
         var segH = Math.max(0, h - gap);
-        if (isTop) el("path", { d: roundedTopRect(x, top, barW, segH, 4), fill: s.color }, svg);
-        else el("rect", { x: x, y: top, width: barW, height: segH, fill: s.color }, svg);
+        // style (not the fill attribute) so theme colors like var(--cat-1) resolve
+        if (isTop) el("path", { d: roundedTopRect(x, top, barW, segH, 4), style: "fill:" + s.color }, svg);
+        else el("rect", { x: x, y: top, width: barW, height: segH, style: "fill:" + s.color }, svg);
         base = top;
       });
       if (totals[i] > 0) {

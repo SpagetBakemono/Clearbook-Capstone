@@ -29,21 +29,11 @@ from app.models import (
 # Category colors for the stacked trend charts, derived from the app's
 # "Dark Green Tropical" palette (navy / teal / green family, see style.css):
 # the palette's own teal and green plus cool neighbors at usable
-# lightness. Validated with the dataviz skill's validate_palette.js on the
-# #FFFFFF chart surface -- all checks pass for *adjacent* slots, which is
-# why the charts stack series in this fixed order. The lime and lavender
-# are under 3:1 against white, so bars always carry hover tooltips and a
-# labeled legend.
-CATEGORY_COLOR_SLOTS = [
-    "#0d5c91",  # deep blue (palette navy, lifted)
-    "#2C9D90",  # palette teal
-    "#5c39b5",  # indigo
-    "#77b30e",  # lime
-    "#0e78e4",  # bright blue
-    "#1D8B65",  # palette green
-    "#9e8bf7",  # lavender
-    "#4a620b",  # olive -- the "Other" fold-bucket, below
-]
+# lightness. Each slot is a CSS variable with a light set (validated on
+# #FFFFFF) and a dark set (validated on #172231) -- see --cat-N in
+# style.css. All checks pass for *adjacent* slots, which is why the charts
+# stack series in this fixed order.
+CATEGORY_COLOR_SLOTS = [f"var(--cat-{i})" for i in range(1, 9)]  # values in style.css, per theme
 
 
 def get_account_balance(db: Session, account: Account) -> Decimal:

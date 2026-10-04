@@ -17,34 +17,47 @@
 {% endfor %}
 {% if balances %}
 <table>
-  <thead><tr><th>Name</th><th>Type</th><th>Opening balance</th><th>Balance</th><th>Bank sync</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Type</th><th class="num">Opening balance</th><th class="num">Balance</th><th>Bank sync</th><th></th></tr></thead>
   <tbody>
     {% for account, balance in balances %}
     <tr>
       <td>{{ account.name }}</td>
       <td><span class="badge">{{ account.type.value.replace('_', ' ') }}</span></td>
-      <td>${{ "%.2f"|format(account.opening_balance) }} <span class="badge">{{ account.opening_balance_date.isoformat() }}</span></td>
-      <td class="{{ 'amount expense' if account.type.value == 'credit_card' and balance > 0 else '' }}">
+      <td class="num">{{ account.opening_balance|money }}</td>
+      <td class="num {{ 'amount expense' if account.type.value == 'credit_card' and balance > 0 else '' }}">
         {% if account.type.value == 'credit_card' %}
-          {{ "$%.2f owed"|format(balance) if balance > 0 else "$0.00" }}
+          {{ (balance|money ~ " owed") if balance > 0 else "$0.00" }}
         {% else %}
-          ${{ "%.2f"|format(balance) }}
+          {{ balance|money }}
         {% endif %}
       </td>
       <td>
-        {% if account.plaid_access_token %}
-          <span class="badge" style="color: var(--good); border-color: var(--good);">Connected via Plaid</span>
-          <form method="post" action="/accounts/{{ account.id }}/plaid/sync" style="margin:0;display:inline;">
-            <button type="submit" class="btn-sm btn-sm-accent">Sync now</button>
-          </form>
-          <form method="post" action="/accounts/{{ account.id }}/plaid/disconnect" style="margin:0;display:inline;"
-                onsubmit='return confirm({{ ("Disconnect " ~ account.name ~ " from Plaid? Transactions already imported stay put.")|tojson }});'>
-            <button type="submit" class="btn-sm btn-sm-outline">Disconnect</button>
-          </form>
-        {% elif account.type.value != 'cash' and has_plaid_keys %}
-          <button type="button" class="btn-sm btn-sm-accent plaid-connect" data-account-id="{{ account.id }}">Connect with Plaid</button>
+        {% set _is_demo = request.state.user.is_demo %}
+        {% if account.type.value == 'cash' %}
+          <span class="sync-state">Manual entry</span>
+        {% elif account.plaid_access_token or _is_demo %}
+          <span class="sync-state is-on">Connected &middot; synced {{ last_sync_by_account.get(account.id) or ("just now" if _is_demo else "not yet") }}</span>
+          <div class="sync-actions">
+            {% if _is_demo %}
+            {# Demo: the buttons look and feel real, but there's no bank behind them. #}
+            <button type="button" class="btn-sm btn-sm-accent" title="Bank sync is simulated in the demo" onclick="this.textContent='Synced';this.disabled=true;">Sync now</button>
+            <button type="button" class="btn-sm btn-sm-outline" title="Not available in the demo" disabled>Disconnect</button>
+            {% else %}
+            <form method="post" action="/accounts/{{ account.id }}/plaid/sync"><button type="submit" class="btn-sm btn-sm-accent">Sync now</button></form>
+            <form method="post" action="/accounts/{{ account.id }}/plaid/disconnect"
+                  onsubmit='return confirm({{ ("Disconnect " ~ account.name ~ " from Plaid? Transactions already imported stay put.")|tojson }});'>
+              <button type="submit" class="btn-sm btn-sm-outline">Disconnect</button>
+            </form>
+            {% endif %}
+          </div>
+        {% elif has_plaid_keys %}
+          <span class="sync-state">Not connected</span>
+          <div class="sync-actions"><button type="button" class="btn-sm btn-sm-accent plaid-connect" data-account-id="{{ account.id }}">Connect with Plaid</button></div>
+        {% else %}
+          <span class="sync-state">Not connected</span>
+          <div class="sync-actions"><a class="btn-sm btn-sm-outline" href="/setup/plaid">Set up Plaid</a></div>
         {% endif %}
-        <div class="plaid-status" data-account-id="{{ account.id }}" style="font-size:12px;margin-top:4px;"></div>
+        <div class="plaid-status" data-account-id="{{ account.id }}"></div>
       </td>
       <td><a href="/accounts/{{ account.id }}/edit">Edit</a></td>
     </tr>

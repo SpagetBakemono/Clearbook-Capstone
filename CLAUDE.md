@@ -112,6 +112,14 @@ fix it in the same change that makes it stale.
 - Palette: "Dark Green Tropical" -- navy `#13243B`, dark green `#153D35`,
   green `#1D8B65`, teal `#2C9D90`, off-white `#F3F3F1` (tokens at the top
   of `style.css`). User-chosen; don't swap it out.
+- Light/dark theme: all colors are tokens at the top of `style.css`
+  (light `:root`, dark `:root[data-theme="dark"]` plus the same under
+  `prefers-color-scheme: dark` unless `data-theme="light"`). Never hard-code
+  a color in a component -- add a token with both values. `theme.js` (in
+  <head>) applies the saved choice; the sun/moon toggle is
+  `_theme_toggle.html` (top bar, and top-right of the signed-out panel).
+  Chart category colors are `var(--cat-N)` with separately validated light
+  and dark sets; charts.js sets them via `style="fill:..."`.
 - Trends charts are drawn client-side by `app/static/charts.js` (plain
   SVG, no chart library -- keep third-party JS out of an app holding bank
   tokens). The route passes plain data via a `|tojson` script blob.
