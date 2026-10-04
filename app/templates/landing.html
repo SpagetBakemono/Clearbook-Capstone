@@ -1,18 +1,20 @@
 {% extends "_split.html" %}
 {% block title %}Welcome{% endblock %}
 {% block hero %}
-<h1 class="hero-title">Know where your money goes.<br>Pay $0 to find out.</h1>
-<p class="hero-text">
-  Apps like Rocket Money charge you a monthly fee to watch your money
-  leave. Clearbook does it for free, and only silently judges your third
-  DoorDash order this week.
-</p>
+<h1 class="hero-title">Free. Like, actually free.</h1>
+{# The lines take turns (app/static/landing.js). Without JS the first one
+   simply stays; screen readers still get both from the markup. #}
+<div class="hero-rotator">
+  <p class="hero-text is-active">No trial, no card, no "premium insights". Just your money, made clear.</p>
+  <p class="hero-text">Know where your money goes. Pay $0 to find out.</p>
+</div>
 <ul class="hero-points">
   <li>Syncs with your bank automatically</li>
   <li>Splits everyday spending from one-offs</li>
   <li>Shows where it all went, month by month</li>
 </ul>
 {% endblock %}
+{% block scripts %}<script src="/static/landing.js?v={{ static_version('landing.js') }}" defer></script>{% endblock %}
 {% block panel %}
 <h2 class="panel-title">Welcome.</h2>
 <p class="panel-sub">Your finances, finally clear.</p>
