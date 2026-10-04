@@ -624,3 +624,11 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 /* On the signed-out screens it sits in the panel's top-right corner. */
 .split-panel { position: relative; }
 .split-panel .theme-toggle { position: absolute; top: 20px; right: 20px; color: var(--text); border-color: var(--border); }
+
+/* Accounts table: roomier cells, everything on one centered line. */
+.accounts-table th, .accounts-table td { padding: 16px 14px; vertical-align: middle; }
+.accounts-table th { padding-top: 10px; padding-bottom: 10px; }
+.accounts-table td:first-child, .accounts-table th:first-child { padding-left: 4px; }
+.accounts-table td:last-child, .accounts-table th:last-child { padding-right: 4px; text-align: right; }
+.accounts-table .sync-cell { gap: 12px; min-height: 28px; }
+.accounts-table .badge { vertical-align: middle; }

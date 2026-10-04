@@ -16,7 +16,7 @@
 <p class="stat-sub" style="margin: 0 0 8px;">{{ note }}</p>
 {% endfor %}
 {% if balances %}
-<table>
+<table class="accounts-table">
   <thead><tr><th>Name</th><th>Type</th><th class="num">Opening balance</th><th class="num">Balance</th><th>Bank sync</th><th></th></tr></thead>
   <tbody>
     {% for account, balance in balances %}
