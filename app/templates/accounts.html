@@ -33,30 +33,25 @@
       </td>
       <td>
         {% set _is_demo = request.state.user.is_demo %}
+        <div class="sync-cell">
         {% if account.type.value == 'cash' %}
-          <span class="sync-state">Manual entry</span>
+          <span class="sync-state">Manual</span>
         {% elif account.plaid_access_token or _is_demo %}
-          <span class="sync-state is-on">Connected &middot; synced {{ last_sync_by_account.get(account.id) or ("just now" if _is_demo else "not yet") }}</span>
-          <div class="sync-actions">
-            {% if _is_demo %}
-            {# Demo: the buttons look and feel real, but there's no bank behind them. #}
-            <button type="button" class="btn-sm btn-sm-accent" title="Bank sync is simulated in the demo" onclick="this.textContent='Synced';this.disabled=true;">Sync now</button>
-            <button type="button" class="btn-sm btn-sm-outline" title="Not available in the demo" disabled>Disconnect</button>
-            {% else %}
-            <form method="post" action="/accounts/{{ account.id }}/plaid/sync"><button type="submit" class="btn-sm btn-sm-accent">Sync now</button></form>
-            <form method="post" action="/accounts/{{ account.id }}/plaid/disconnect"
-                  onsubmit='return confirm({{ ("Disconnect " ~ account.name ~ " from Plaid? Transactions already imported stay put.")|tojson }});'>
-              <button type="submit" class="btn-sm btn-sm-outline">Disconnect</button>
-            </form>
-            {% endif %}
-          </div>
+          <span class="sync-state is-on">Synced {{ last_sync_by_account.get(account.id) or ("just now" if _is_demo else "not yet") }}</span>
+          {% if _is_demo %}
+          {# Demo: a working-looking button with no bank behind it. #}
+          <button type="button" class="btn-sm btn-sm-outline" title="Bank sync is simulated in the demo" onclick="this.textContent='Done';this.disabled=true;">Sync</button>
+          {% else %}
+          <form method="post" action="/accounts/{{ account.id }}/plaid/sync"><button type="submit" class="btn-sm btn-sm-outline">Sync</button></form>
+          {% endif %}
         {% elif has_plaid_keys %}
           <span class="sync-state">Not connected</span>
-          <div class="sync-actions"><button type="button" class="btn-sm btn-sm-accent plaid-connect" data-account-id="{{ account.id }}">Connect with Plaid</button></div>
+          <button type="button" class="btn-sm btn-sm-accent plaid-connect" data-account-id="{{ account.id }}">Connect</button>
         {% else %}
           <span class="sync-state">Not connected</span>
-          <div class="sync-actions"><a class="btn-sm btn-sm-outline" href="/setup/plaid">Set up Plaid</a></div>
+          <a class="btn-sm btn-sm-outline" href="/setup/plaid">Set up</a>
         {% endif %}
+        </div>
         <div class="plaid-status" data-account-id="{{ account.id }}"></div>
       </td>
       <td><a href="/accounts/{{ account.id }}/edit">Edit</a></td>

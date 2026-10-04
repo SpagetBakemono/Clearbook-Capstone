@@ -591,14 +591,16 @@ button:hover { opacity: 0.9; }
   .topbar-user { margin-left: 0; padding-left: 0; border-left: none; }
 }
 
-/* Accounts: bank sync status + actions, one tidy cell. */
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Accounts: bank sync status + one small action, on a single line. */
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sync-cell { display: flex; align-items: center; gap: 10px; white-space: nowrap; min-height: 30px; }
+.sync-cell form { margin: 0; }
 .sync-state { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .sync-state.is-on { color: var(--text); }
 .sync-state.is-on::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--income); }
-.sync-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.sync-actions form { margin: 0; }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+.danger-zone { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); max-width: 480px; }
+.danger-zone p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
 .plaid-status { font-size: 12px; margin-top: 4px; }
 
 /* Dark theme: a hairline under the navy bar so it doesn't melt into the page. */

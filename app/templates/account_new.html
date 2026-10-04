@@ -30,6 +30,14 @@
   </div>
   <button type="submit">{{ "Save changes" if account else "Add account" }}</button>
 </form>
+
+{% if account and account.plaid_access_token %}
+<form method="post" action="/accounts/{{ account.id }}/plaid/disconnect" class="danger-zone"
+      onsubmit='return confirm({{ ("Disconnect " ~ account.name ~ " from Plaid? Transactions already imported stay put.")|tojson }});'>
+  <p>Connected to your bank through Plaid.</p>
+  <button type="submit" class="btn-sm btn-sm-outline">Disconnect from bank</button>
+</form>
+{% endif %}
 {% if account %}
 <p style="margin-top:12px;">
   <a href="/accounts">&larr; Back to accounts</a> --
