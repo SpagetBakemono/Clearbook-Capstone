@@ -1,0 +1,9 @@
+{# The landing page's pitch -- also the left side of /setup/plaid. #}
+<h1 class="hero-title">Free. Like, actually free.</h1>
+{# The lines take turns (app/static/landing.js). Without JS the first one
+   simply stays; screen readers still get both from the markup. #}
+<div class="hero-rotator">
+  <p class="hero-text is-active">No trial, no card, no "premium insights". Just your money, made clear.</p>
+  <p class="hero-text">Know where your money goes. Pay $0 to find out.</p>
+</div>
+<script src="/static/landing.js?v={{ static_version('landing.js') }}" defer></script>

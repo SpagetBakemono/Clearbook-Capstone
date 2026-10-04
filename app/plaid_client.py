@@ -1,16 +1,16 @@
 """
 Plaid client wrapper -- creates Link tokens, exchanges them for access
-tokens, and syncs transactions. Env-driven credentials, a fresh client
-per call, no DB access here -- app/plaid_sync.py decides what happens
-with the result.
+tokens, and syncs transactions. Every call takes the *user's own* Plaid
+Sandbox keys (PlaidCreds) -- Clearbook has no Plaid keys of its own, by
+design. A fresh client per call, no DB access here; app/plaid_sync.py
+decides what happens with the result.
 """
 import json
-import os
+from dataclasses import dataclass
 from decimal import Decimal
 
 import certifi
 import plaid
-from dotenv import load_dotenv
 from plaid.api import plaid_api
 from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest
 from plaid.model.accounts_get_request import AccountsGetRequest
@@ -22,31 +22,22 @@ from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUse
 from plaid.model.products import Products
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 
-load_dotenv()
+@dataclass(frozen=True)
+class PlaidCreds:
+    """One user's Plaid Sandbox keys (decrypted, in memory only)."""
 
-ENVIRONMENTS = {
-    "sandbox": plaid.Environment.Sandbox,
-    "production": plaid.Environment.Production,
-}
+    client_id: str
+    secret: str
+
+    def __repr__(self) -> str:  # never let the secret reach a log line
+        return f"PlaidCreds(client_id={self.client_id!r}, secret=***)"
 
 
-def _client() -> plaid_api.PlaidApi:
-    env = os.getenv("PLAID_ENV", "sandbox").lower()
-    if env not in ENVIRONMENTS:
-        raise RuntimeError(f"PLAID_ENV must be 'sandbox' or 'production', got {env!r}")
-
-    # Separate secrets per environment, so flipping PLAID_ENV can never
-    # pair a sandbox secret with production (or vice versa).
-    client_id = os.getenv("PLAID_CLIENT_ID")
-    secret = os.getenv(f"PLAID_SECRET_{env.upper()}")
-    if not client_id or not secret:
-        raise RuntimeError(
-            f"PLAID_CLIENT_ID / PLAID_SECRET_{env.upper()} are not set -- check .env"
-        )
-
+def _client(creds: PlaidCreds) -> plaid_api.PlaidApi:
+    # Sandbox only: test banks and fake transactions, no real bank data.
     configuration = plaid.Configuration(
-        host=ENVIRONMENTS[env],
-        api_key={"clientId": client_id, "secret": secret},
+        host=plaid.Environment.Sandbox,
+        api_key={"clientId": creds.client_id, "secret": creds.secret},
     )
     # python.org's macOS Python ships without a trusted CA bundle, so TLS
     # verification fails against plaid.com. Point it at certifi's bundle --
@@ -71,43 +62,43 @@ def describe_error(e: Exception) -> str:
     return str(e)
 
 
-def create_link_token() -> str:
+def create_link_token(creds: PlaidCreds, user_ref: str) -> str:
     """A short-lived token the frontend uses to open Plaid Link. One
     generic session covers whichever bank/account the user picks in the
     Link UI -- mapping the result to a specific local Account happens
     after, in the exchange step."""
-    client = _client()
+    client = _client(creds)
     request = LinkTokenCreateRequest(
         client_name="Clearbook",
         language="en",
         country_codes=[CountryCode("US")],
-        user=LinkTokenCreateRequestUser(client_user_id="local-user"),
+        user=LinkTokenCreateRequestUser(client_user_id=user_ref),
         products=[Products("transactions")],
     )
     return client.link_token_create(request).link_token
 
 
-def exchange_public_token(public_token: str) -> str:
+def exchange_public_token(creds: PlaidCreds, public_token: str) -> str:
     """Public tokens are single-use and expire in ~30 minutes; the
     access_token this returns is the long-lived credential that actually
     gets stored (on Account.plaid_access_token)."""
-    client = _client()
+    client = _client(creds)
     request = ItemPublicTokenExchangeRequest(public_token=public_token)
     return client.item_public_token_exchange(request).access_token
 
 
-def remove_item(access_token: str) -> None:
+def remove_item(creds: PlaidCreds, access_token: str) -> None:
     """Revokes the connection at Plaid: the access token stops working
     for good, and (on the trial) the connection slot frees up. Just
     forgetting the token locally would leave both alive."""
-    _client().item_remove(ItemRemoveRequest(access_token=access_token))
+    _client(creds).item_remove(ItemRemoveRequest(access_token=access_token))
 
 
-def get_accounts(access_token: str) -> list[dict]:
+def get_accounts(creds: PlaidCreds, access_token: str) -> list[dict]:
     """The account(s) available under one linked Item, so a caller can
     show a picker if Link surfaced more than one (e.g. checking +
     savings from the same bank in one session)."""
-    client = _client()
+    client = _client(creds)
     request = AccountsGetRequest(access_token=access_token)
     response = client.accounts_get(request)
     return [
@@ -123,11 +114,11 @@ def get_accounts(access_token: str) -> list[dict]:
     ]
 
 
-def get_balance(access_token: str, plaid_account_id: str) -> Decimal | None:
+def get_balance(creds: PlaidCreds, access_token: str, plaid_account_id: str) -> Decimal | None:
     """Live current balance for one account under an Item -- used to
     cross-check against the app's own projected balance after a sync,
     the same way a statement's stated balance already is."""
-    client = _client()
+    client = _client(creds)
     request = AccountsBalanceGetRequest(access_token=access_token)
     response = client.accounts_balance_get(request)
     for a in response.accounts:
@@ -160,7 +151,9 @@ def _shape(t) -> dict:
     }
 
 
-def sync_transactions(access_token: str, plaid_account_id: str, cursor: str | None) -> dict:
+def sync_transactions(
+    creds: PlaidCreds, access_token: str, plaid_account_id: str, cursor: str | None
+) -> dict:
     """Wraps /transactions/sync for one account within an Item (an Item
     can cover several; everything is filtered to plaid_account_id).
     Follows has_more to the end so the returned cursor is only ever a
@@ -171,7 +164,7 @@ def sync_transactions(access_token: str, plaid_account_id: str, cursor: str | No
     Plaid removes the pending id and adds a posted one whose
     pending_plaid_id points back at it, which the caller uses to update
     the same row in place."""
-    client = _client()
+    client = _client(creds)
     added, modified, removed = [], [], []
     next_cursor = cursor
     has_more = True

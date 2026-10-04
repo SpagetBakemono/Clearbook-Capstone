@@ -417,3 +417,15 @@ button:hover { opacity: 0.9; }
 .topbar-user button:hover { border-color: #ffffff; opacity: 1; }
 .topbar-user button:focus-visible { outline: 3px solid var(--chart-line); outline-offset: 2px; }
 @media (max-width: 760px) { .topbar-user span { display: none; } }
+
+/* Plaid setup: numbered walkthrough above the key fields. */
+.setup-steps { margin: 0 0 20px; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; line-height: 1.5; color: var(--secondary); }
+.setup-steps a { color: var(--accent-strong); font-weight: 600; }
+.setup-steps strong { color: var(--text); font-weight: 600; }
+.setup-note { margin: 14px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+
+/* Dashboard with no accounts yet. */
+.empty-state { text-align: center; padding: 72px 24px; }
+.empty-state h2 { font-family: var(--font-display); font-size: 26px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 8px; }
+.empty-state p { color: var(--muted); margin: 0 0 24px; }
+.empty-state .btn-primary { display: inline-flex; width: auto; padding: 0 28px; }

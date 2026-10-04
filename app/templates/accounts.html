@@ -3,6 +3,13 @@
 {% block content %}
 <h2>Accounts</h2>
 {% include "_sync_alerts.html" %}
+{% if not has_plaid_keys %}
+<div class="card capture-log" style="margin-bottom: 16px;">
+  <p style="margin: 0; font-size: 14px;">To connect a bank, first add your Plaid keys. <a href="/setup/plaid">Add Plaid keys</a></p>
+</div>
+{% else %}
+<p class="stat-sub" style="margin: -4px 0 12px;">Using your Plaid Sandbox keys. <a href="/setup/plaid">Change keys</a></p>
+{% endif %}
 {% for note in balance_drift %}
 <p class="stat-sub" style="margin: 0 0 8px;">{{ note }}</p>
 {% endfor %}
@@ -32,7 +39,7 @@
                 onsubmit='return confirm({{ ("Disconnect " ~ account.name ~ " from Plaid? Transactions already imported stay put.")|tojson }});'>
             <button type="submit" class="btn-sm btn-sm-outline">Disconnect</button>
           </form>
-        {% elif account.type.value != 'cash' %}
+        {% elif account.type.value != 'cash' and has_plaid_keys %}
           <button type="button" class="btn-sm btn-sm-accent plaid-connect" data-account-id="{{ account.id }}">Connect with Plaid</button>
         {% endif %}
         <div class="plaid-status" data-account-id="{{ account.id }}" style="font-size:12px;margin-top:4px;"></div>

@@ -34,7 +34,7 @@ from app.models import (
     Transaction,
     TransactionType,
 )
-from app.plaid_client import describe_error, get_balance, sync_transactions
+from app.plaid_client import PlaidCreds, describe_error, get_balance, sync_transactions
 from app.services import get_account_balance, log_import_capture, owned_account_ids
 from app.token_crypto import decrypt_token
 
@@ -93,6 +93,18 @@ NEEDS_USER_ERRORS = {
     "ACCESS_NOT_GRANTED",
     "NO_ACCOUNTS",
 }
+
+
+class NoPlaidKeys(RuntimeError):
+    """The user hasn't saved their Plaid keys yet."""
+
+
+def creds_for(user) -> PlaidCreds:
+    """The user's own Plaid keys, decrypted for one call. Raises
+    NoPlaidKeys if they haven't added any."""
+    if not user.plaid_client_id or not user.plaid_secret:
+        raise NoPlaidKeys("Add your Plaid keys first.")
+    return PlaidCreds(user.plaid_client_id, decrypt_token(user.plaid_secret))
 
 
 def _within(days: int, when):
@@ -432,9 +444,10 @@ def sync_plaid_account(db: Session, account: Account) -> int:
     changes and the advanced cursor -- lands in one commit, so a failure
     part-way leaves nothing half-applied and the next sync retries it.
     Raises on any Plaid/network/decryption failure."""
+    creds = creds_for(account.user)
     token = decrypt_token(account.plaid_access_token)
     first_sync = account.plaid_cursor is None
-    result = sync_transactions(token, account.plaid_account_id, account.plaid_cursor)
+    result = sync_transactions(creds, token, account.plaid_account_id, account.plaid_cursor)
 
     backfill_until = None
     if first_sync:
@@ -468,7 +481,7 @@ def sync_plaid_account(db: Session, account: Account) -> int:
     account.plaid_cursor = result["next_cursor"]
     db.commit()
 
-    bank_balance = get_balance(token, account.plaid_account_id)
+    bank_balance = get_balance(creds, token, account.plaid_account_id)
     app_balance = _posted_balance(db, account)
     matches = None
     if bank_balance is not None:

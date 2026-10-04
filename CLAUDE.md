@@ -25,8 +25,11 @@ never be touched from here).
    -- navy brand panel + action panel; logo is the serif "Clearbook"
    text wordmark). Forms show "coming soon" until auth (#2).
 2. ~~Users + auth pages; `Account.user_id`; per-user query scoping + tests.~~ Done.
-3. Per-user Plaid credentials through plaid_client / plaid_routes /
-   plaid_sync.
+3. ~~Per-user Plaid credentials through plaid_client / plaid_routes /
+   plaid_sync.~~ Done: `/setup/plaid` (after sign-up; keys checked with a
+   link-token call, secret Fernet-encrypted on `User`), `PlaidCreds` passed
+   to every `plaid_client` call, `creds_for(user)` in plaid_sync. Sandbox
+   only. Dashboard shows "No accounts to look up" -> Accounts when empty.
 4. Onboarding (/welcome): keys -> connect sandbox bank -> auto-created
    accounts with back-filled opening balance -> dashboard; "Load demo
    data" fallback.

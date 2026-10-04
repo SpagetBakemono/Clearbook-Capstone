@@ -1,15 +1,8 @@
 {% extends "_split.html" %}
 {% block title %}Welcome{% endblock %}
 {% block hero %}
-<h1 class="hero-title">Free. Like, actually free.</h1>
-{# The lines take turns (app/static/landing.js). Without JS the first one
-   simply stays; screen readers still get both from the markup. #}
-<div class="hero-rotator">
-  <p class="hero-text is-active">No trial, no card, no "premium insights". Just your money, made clear.</p>
-  <p class="hero-text">Know where your money goes. Pay $0 to find out.</p>
-</div>
+{% include "_landing_hero.html" %}
 {% endblock %}
-{% block scripts %}<script src="/static/landing.js?v={{ static_version('landing.js') }}" defer></script>{% endblock %}
 {% block panel %}
 <h2 class="panel-title">Welcome.</h2>
 <p class="panel-sub">Your finances, finally clear.</p>

@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
+{% if not balances %}
+<div class="empty-state">
+  <h2>No accounts to look up</h2>
+  <p>Add a bank account (or cash) and your spending shows up here.</p>
+  <a class="btn-primary" href="/accounts">Add an account</a>
+</div>
+{% else %}
 {% include "_sync_alerts.html" %}
 
 {% if balances %}
@@ -178,4 +185,5 @@
 <p class="empty">No transactions yet this month{{ " for " + selected_account.name if selected_account else "" }}.</p>
 {% endif %}
 
+{% endif %}
 {% endblock %}

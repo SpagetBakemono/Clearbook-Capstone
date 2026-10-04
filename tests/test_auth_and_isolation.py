@@ -87,7 +87,7 @@ def test_logged_out_pages_redirect_to_landing(started):
 def test_signup_login_logout(started):
     c = client()
     r = signup(c, "Alice@Example.com")
-    assert r.status_code == 303 and r.headers["location"] == "/"
+    assert r.status_code == 303 and r.headers["location"] == "/setup/plaid"  # next: Plaid keys
     assert c.get("/").status_code == 200
     assert "alice@example.com" in c.get("/").text  # shown lowercased in the top bar
 
@@ -213,8 +213,10 @@ def test_bank_sync_never_matches_across_users(started):
     from app.models import Account, AccountType, Transaction, TransactionType, User
 
     db = SessionLocal()
-    ua = User(email="sync-a@iso.test", password_hash="x", password_salt="y")
-    ub = User(email="sync-b@iso.test", password_hash="x", password_salt="y")
+    ua = User(email="sync-a@iso.test", password_hash="x", password_salt="y",
+              plaid_client_id="cid-a", plaid_secret="enc-a")
+    ub = User(email="sync-b@iso.test", password_hash="x", password_salt="y",
+              plaid_client_id="cid-b", plaid_secret="enc-b")
     db.add_all([ua, ub]); db.commit()
     a_chk = Account(user_id=ua.id, name="A Checking", type=AccountType.CHECKING, opening_balance=D(0),
                     opening_balance_date=date(2026, 9, 1), plaid_access_token="tok", plaid_cursor="c")
@@ -254,3 +256,67 @@ def test_bank_sync_never_matches_across_users(started):
     b_credit = db.query(Transaction).filter_by(note="PAYMENT", account_id=b_card.id).one()
     assert b_credit.type == TransactionType.INCOME and b_credit.plaid_pair_transaction_id is None
     db.close()
+
+
+# ------------------------------------------------------------ plaid keys
+
+FAKE_CLIENT_ID = "a1b2c3d4e5f6a7b8c9d0e1f2"
+FAKE_SECRET = "0123456789abcdef0123456789abcd"
+
+
+def test_empty_dashboard_points_to_accounts(started):
+    c = client()
+    signup(c, "empty@example.com")
+    page = c.get("/").text
+    assert "No accounts to look up" in page and 'href="/accounts"' in page
+
+
+def test_plaid_keys_saved_encrypted_after_check(started):
+    from unittest.mock import patch
+
+    import app.routers.auth as auth_routes
+
+    c = client()
+    signup(c, "keys@example.com")
+    assert "Connect Plaid" in c.get("/setup/plaid").text
+    assert "add your Plaid keys" in c.get("/accounts").text
+
+    # Garbage is refused before Plaid is even asked.
+    assert "look like a Plaid key" in c.post("/setup/plaid", data={"client_id": "x", "secret": "y"}).text
+
+    # Keys Plaid rejects are not saved.
+    class Rejected(Exception):
+        body = '{"error_code": "INVALID_API_KEYS", "error_message": "invalid client_id or secret provided"}'
+    with patch.object(auth_routes, "create_link_token", side_effect=Rejected()):
+        r = c.post("/setup/plaid", data={"client_id": FAKE_CLIENT_ID, "secret": FAKE_SECRET})
+    assert r.status_code == 400 and "accept those keys" in r.text and FAKE_SECRET not in r.text
+
+    # Keys Plaid accepts are saved -- secret encrypted -- then on to the dashboard.
+    with patch.object(auth_routes, "create_link_token", return_value="link-sandbox-ok") as called:
+        r = c.post("/setup/plaid", data={"client_id": FAKE_CLIENT_ID, "secret": FAKE_SECRET},
+                   follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/"
+    assert called.call_args.args[0].secret == FAKE_SECRET  # the user's own keys were the ones tested
+
+    con = sqlite3.connect(DB_PATH)
+    try:
+        cid, stored = con.execute("select plaid_client_id, plaid_secret from users where email='keys@example.com'").fetchone()
+    finally:
+        con.close()
+    assert cid == FAKE_CLIENT_ID and stored and stored != FAKE_SECRET and FAKE_SECRET not in stored
+    from app.token_crypto import decrypt_token
+    assert decrypt_token(stored) == FAKE_SECRET
+
+    # The secret never comes back to the browser.
+    for path in ["/setup/plaid", "/accounts", "/"]:
+        assert FAKE_SECRET not in c.get(path).text, path
+    assert "Change keys" in c.get("/accounts").text
+
+
+def test_no_keys_means_no_plaid_calls(started):
+    """Without the user's own keys there is nothing to call Plaid with --
+    Clearbook has no keys of its own to fall back on."""
+    c = client()
+    signup(c, "nokeys@example.com")
+    r = c.post("/plaid/create-link-token")
+    assert r.status_code == 400 and r.json()["setup_url"] == "/setup/plaid"

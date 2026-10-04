@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -13,12 +15,15 @@ from app.auth import (
     log_out,
     normalize_email,
     record_failure,
+    require_user,
     too_many_attempts,
     verify_password,
 )
 from app.database import get_db
 from app.models import User
+from app.plaid_client import PlaidCreds, create_link_token, describe_error
 from app.plaid_sync import sync_user_accounts
+from app.token_crypto import encrypt_token
 from app.templating import templates
 
 router = APIRouter()
@@ -102,10 +107,73 @@ def signup(
     db.add(user)
     db.commit()
     log_in(request, user)
-    return RedirectResponse(url="/", status_code=303)
+    # Next step for a new user: their own Plaid keys.
+    return RedirectResponse(url="/setup/plaid", status_code=303)
 
 
 @router.post("/logout")
 def logout(request: Request):
     log_out(request)
     return RedirectResponse(url="/landing", status_code=303)
+
+
+# ---- Plaid keys (each user brings their own Sandbox keys) -------------------
+
+KEY_PATTERN = re.compile(r"^[A-Za-z0-9]{16,64}$")
+
+
+def _friendly_plaid_error(e: Exception) -> str:
+    """Plaid's error codes, in words a person can act on. Never echoes the
+    keys themselves."""
+    code = describe_error(e).split(":", 1)[0]
+    if code in ("INVALID_API_KEYS", "INVALID_CLIENT_ID", "INVALID_SECRET"):
+        return (
+            "Plaid didn't accept those keys. Check you copied the Client ID and the "
+            "Sandbox secret (not the Production one) from the same team."
+        )
+    if code == "UNAUTHORIZED_ENVIRONMENT":
+        return "Those keys aren't enabled for Sandbox. Copy the Sandbox secret from the Plaid dashboard."
+    return "Couldn't reach Plaid to check the keys. Try again in a moment."
+
+
+@router.get("/setup/plaid")
+def plaid_setup_form(request: Request, user: User = Depends(require_user)):
+    return templates.TemplateResponse(
+        request,
+        "plaid_setup.html",
+        {"has_keys": bool(user.plaid_secret), "client_id": user.plaid_client_id},
+    )
+
+
+@router.post("/setup/plaid")
+def plaid_setup(
+    request: Request,
+    client_id: str = Form(""),
+    secret: str = Form(""),
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    client_id, secret = client_id.strip(), secret.strip()
+
+    def fail(message: str):
+        return templates.TemplateResponse(
+            request,
+            "plaid_setup.html",
+            {"error": message, "client_id": client_id, "has_keys": bool(user.plaid_secret)},
+            status_code=400,
+        )
+
+    if not KEY_PATTERN.match(client_id) or not KEY_PATTERN.match(secret):
+        return fail("That doesn't look like a Plaid key -- both are long strings of letters and numbers.")
+
+    # Prove the keys work before saving them: a link token is the cheapest
+    # call that needs a valid client ID + Sandbox secret pair.
+    try:
+        create_link_token(PlaidCreds(client_id, secret), f"clearbook-user-{user.id}")
+    except Exception as e:  # Plaid rejected them, or network trouble
+        return fail(_friendly_plaid_error(e))
+
+    user.plaid_client_id = client_id
+    user.plaid_secret = encrypt_token(secret)
+    db.commit()
+    return RedirectResponse(url="/", status_code=303)

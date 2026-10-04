@@ -13,7 +13,7 @@ from app.plaid_client import (
     get_accounts,
     remove_item,
 )
-from app.plaid_sync import LAST_SYNC_ERRORS, sync_account_recording_errors
+from app.plaid_sync import LAST_SYNC_ERRORS, NoPlaidKeys, creds_for, sync_account_recording_errors
 from app.routers.accounts import owned_account
 from app.token_crypto import decrypt_token, encrypt_token
 
@@ -29,7 +29,9 @@ def _plaid_error(e: Exception) -> JSONResponse:
 @router.post("/plaid/create-link-token")
 def plaid_create_link_token(user: User = Depends(require_user)):
     try:
-        return {"link_token": create_link_token()}
+        return {"link_token": create_link_token(creds_for(user), f"clearbook-user-{user.id}")}
+    except NoPlaidKeys as e:
+        return JSONResponse({"error": str(e), "setup_url": "/setup/plaid"}, status_code=400)
     except Exception as e:  # SDK, network (TLS/DNS/timeout), or missing config
         return _plaid_error(e)
 
@@ -52,8 +54,9 @@ def plaid_exchange(
         return JSONResponse({"error": "That account no longer exists."}, status_code=400)
 
     try:
-        access_token = exchange_public_token(body.public_token)
-        plaid_accounts = get_accounts(access_token)
+        creds = creds_for(user)
+        access_token = exchange_public_token(creds, body.public_token)
+        plaid_accounts = get_accounts(creds, access_token)
     except Exception as e:  # SDK, network (TLS/DNS/timeout), or missing config
         return _plaid_error(e)
 
@@ -106,7 +109,7 @@ def plaid_disconnect(
     if account:
         if account.plaid_access_token:
             try:
-                remove_item(decrypt_token(account.plaid_access_token))
+                remove_item(creds_for(user), decrypt_token(account.plaid_access_token))
             except Exception as e:  # already revoked, wrong env, network...
                 # Still clear it locally -- a token the app can't use is
                 # worse than useless to keep -- but say so, since it may

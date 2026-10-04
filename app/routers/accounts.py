@@ -33,6 +33,7 @@ def list_accounts(
         "accounts.html",
         {
             "balances": balances,
+            "has_plaid_keys": bool(user.plaid_secret),
             "sync_alerts": get_sync_alerts(db, user_id=user.id),
             "balance_drift": get_balance_drift(db, user_id=user.id),
             "last_synced": relative_time(last_synced) if last_synced else None,
