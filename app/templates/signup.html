@@ -1,0 +1,21 @@
+{% extends "_split.html" %}
+{% block title %}Sign up{% endblock %}
+{% block hero %}
+<h1 class="hero-title">Free. Like, actually free.</h1>
+<p class="hero-text">No trial, no card, no "premium insights". Just your money, made clear.</p>
+{% endblock %}
+{% block panel %}
+<h2 class="panel-title">Create your account</h2>
+<p class="panel-sub">Takes about a minute.</p>
+{% if notice %}<p class="form-notice" role="status">{{ notice }}</p>{% endif %}
+<form class="auth-form" method="post" action="/signup">
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" autocomplete="email" required value="{{ email or '' }}" />
+  <label for="password">Password</label>
+  <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" />
+  <label for="confirm">Confirm password</label>
+  <input id="confirm" name="confirm" type="password" autocomplete="new-password" required minlength="8" />
+  <button type="submit" class="btn-primary">Create account</button>
+</form>
+<p class="panel-switch">Already have an account? <a href="/login">Log in</a></p>
+{% endblock %}

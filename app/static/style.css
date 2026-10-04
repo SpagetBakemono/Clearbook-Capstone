@@ -9,16 +9,20 @@
   --surface: #ffffff;
   --border: #dfe1dd;
   --text: #13243b;
-  --muted: #6b7480;
+  --muted: #5f6873;          /* 5.1:1 on --bg (AA) */
   --secondary: #3d4a5a;
   --navy: #13243b;
   --accent: #1d8b65;
+  --accent-button: #177a59;  /* palette green, deepened so white text clears AA (5.3:1) */
   --accent-strong: #153d35;
   --chart-line: #2c9d90;
   --grid: #eceeea;
   --good: #1d8b65;
   --danger: #c93b3b;
   --radius: 10px;
+  /* Brand + headlines: the platform serif (New York on Apple devices,
+     Georgia elsewhere) -- classy without downloading a web font. */
+  --font-display: ui-serif, "New York", "Iowan Old Style", Georgia, serif;
 }
 
 * { box-sizing: border-box; }
@@ -41,7 +45,7 @@ body {
   z-index: 20;
 }
 
-.brand { font-weight: 600; text-decoration: none; color: #ffffff; }
+.brand { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: 0.01em; text-decoration: none; color: #ffffff; }
 
 .topbar nav a {
   margin-left: 18px;
@@ -301,3 +305,91 @@ button:hover { opacity: 0.9; }
 
 /* Manual page: the add form spans the content width. */
 .manual-form .form-card { max-width: none; }
+
+
+/* ---- Signed-out screens: landing, log in, sign up (_split.html) ----
+   Navy brand panel on the left, the action on the right; stacked on
+   phones. */
+.split { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+.split-hero {
+  background: var(--navy);
+  color: #f3f3f1;
+  padding: 40px 56px;
+  display: flex;
+  flex-direction: column;
+}
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #ffffff;
+  text-decoration: none;
+}
+.split-hero-body { margin: auto 0; max-width: 30rem; }
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(30px, 3.4vw, 44px);
+  line-height: 1.15;
+  margin: 0 0 20px;
+  text-wrap: balance;
+}
+.hero-text { font-size: 17px; line-height: 1.6; color: #c9d2dc; margin: 0 0 24px; max-width: 34rem; }
+.hero-points { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 15px; color: #e3e8ee; }
+.hero-points li { display: flex; align-items: baseline; gap: 10px; }
+.hero-points li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--chart-line); flex-shrink: 0; transform: translateY(-2px); }
+
+.split-panel {
+  background: var(--bg);
+  border-left: 1px solid rgba(19, 36, 59, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+.split-panel-inner { width: 100%; max-width: 340px; }
+.panel-title { font-family: var(--font-display); font-weight: 500; font-size: 30px; color: var(--text); text-transform: none; letter-spacing: 0; margin: 0 0 6px; }
+.panel-sub { color: var(--muted); font-size: 15px; margin: 0 0 28px; }
+.panel-actions { display: grid; gap: 12px; }
+.panel-switch { margin: 20px 0 0; font-size: 14px; color: var(--muted); text-align: center; }
+.panel-switch a { color: var(--accent-strong); font-weight: 600; }
+
+.btn-primary, .btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.btn-primary { background: var(--accent-button); color: #ffffff; border: 1px solid var(--accent-button); }
+.btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); opacity: 1; }
+.btn-secondary { background: transparent; color: var(--navy); border: 1px solid var(--navy); }
+.btn-secondary:hover { background: rgba(19, 36, 59, 0.06); }
+.btn-primary:focus-visible, .btn-secondary:focus-visible, .auth-form input:focus-visible, .panel-switch a:focus-visible, .wordmark:focus-visible {
+  outline: 3px solid var(--chart-line);
+  outline-offset: 2px;
+}
+
+.auth-form { display: grid; gap: 6px; }
+.auth-form label { margin: 8px 0 0; font-size: 13px; color: var(--secondary); }
+.auth-form input { height: 44px; background: var(--surface); }
+.auth-form .btn-primary { margin-top: 18px; }
+.form-notice { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px; color: var(--secondary); margin: 0 0 16px; }
+
+@media (max-width: 760px) {
+  .split { grid-template-columns: 1fr; min-height: 100vh; }
+  .split-hero { padding: 24px 16px 32px; }
+  .split-hero-body { margin: 28px 0 0; }
+  .split-panel { border-left: none; border-top: 1px solid rgba(19, 36, 59, 0.18); padding: 32px 16px 48px; align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary, .btn-secondary { transition: none; }
+}

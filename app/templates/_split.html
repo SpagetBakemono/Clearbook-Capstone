@@ -1,0 +1,18 @@
+{# Two-panel layout for the signed-out screens: the brand and pitch on a
+   navy panel (left, or top on phones), the action on the right. #}
+{% extends "base.html" %}
+{% block page %}
+<div class="split">
+  <section class="split-hero">
+    <a class="wordmark" href="/landing">Clearbook</a>
+    <div class="split-hero-body">
+      {% block hero %}{% endblock %}
+    </div>
+  </section>
+  <section class="split-panel">
+    <div class="split-panel-inner">
+      {% block panel %}{% endblock %}
+    </div>
+  </section>
+</div>
+{% endblock %}

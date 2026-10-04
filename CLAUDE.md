@@ -20,7 +20,10 @@ never be touched from here).
   serverless).
 
 ### TODO (in order)
-1. UI design pass: minimal, classy, very simple flow (starting now).
+1. UI design pass: minimal, classy, very simple flow. Done so far:
+   signed-out screens (`/landing`, `/login`, `/signup` in `_split.html`
+   -- navy brand panel + action panel; logo is the serif "Clearbook"
+   text wordmark). Forms show "coming soon" until auth (#2).
 2. Users + auth pages; `Account.user_id`; per-user query scoping + tests.
 3. Per-user Plaid credentials through plaid_client / plaid_routes /
    plaid_sync.

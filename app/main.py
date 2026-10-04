@@ -7,7 +7,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.database import Base, SessionLocal, engine
 from app.plaid_sync import sync_periodically
-from app.routers import accounts, dashboard, imports, plaid_routes, transactions, trends
+from app.routers import accounts, auth, dashboard, imports, plaid_routes, transactions, trends
 from app.services import seed_default_categories
 
 # No interactive API docs -- nothing uses them, and they'd publish the
@@ -46,6 +46,7 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+app.include_router(auth.router)
 app.include_router(dashboard.router)
 app.include_router(accounts.router)
 app.include_router(transactions.router)
