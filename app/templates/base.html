@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}Expense Tracker{% endblock %}</title>
+  <title>{% block title %}{% endblock %} · Clearbook</title>
   <link rel="stylesheet" href="/static/style.css?v={{ static_version('style.css') }}" />
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/">Expense Tracker</a>
+    <a class="brand" href="/">Clearbook</a>
     <nav>
       {% set _path = request.url.path %}
       <a href="/" {{ 'class=active' if _path == '/' }}>Dashboard</a>

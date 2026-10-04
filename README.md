@@ -1,4 +1,4 @@
-# Expense Tracker -- Capstone
+# Clearbook
 
 A multi-user expense tracker: log in, connect a (Plaid Sandbox) bank with
 your own free Plaid keys, and see your spending, income and balance

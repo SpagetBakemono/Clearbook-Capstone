@@ -1,4 +1,4 @@
-# Expense Tracker -- Capstone edition
+# Clearbook -- capstone edition of the expense tracker
 
 A multi-user demo of the owner's personal expense tracker, for a capstone
 project: at most ~5 users, live for 1-3 days. It started as a copy of the

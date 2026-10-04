@@ -78,7 +78,7 @@ def create_link_token() -> str:
     after, in the exchange step."""
     client = _client()
     request = LinkTokenCreateRequest(
-        client_name="Personal Expense Tracker",
+        client_name="Clearbook",
         language="en",
         country_codes=[CountryCode("US")],
         user=LinkTokenCreateRequestUser(client_user_id="local-user"),

@@ -12,7 +12,7 @@ from app.services import seed_default_categories
 
 # No interactive API docs -- nothing uses them, and they'd publish the
 # full endpoint map to anything that can reach the server.
-app = FastAPI(title="Expense Tracker", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="Clearbook", docs_url=None, redoc_url=None, openapi_url=None)
 
 # Listening on 127.0.0.1 keeps other machines out, but not other
 # *websites*: any page open in your browser can send requests to
