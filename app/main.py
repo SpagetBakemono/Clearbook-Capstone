@@ -48,12 +48,15 @@ async def reject_cross_site_writes(request: Request, call_next):
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     """Standard hardening for a site that holds financial data: no framing
-    (clickjacking), no MIME sniffing, no referrer leaking page URLs, and
-    HTTPS-only once deployed."""
+    (clickjacking), no MIME sniffing, no page URLs leaked to other sites,
+    and HTTPS-only once deployed."""
     response = await call_next(request)
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "no-referrer"
+    # same-origin, not no-referrer: with no-referrer, browsers send
+    # "Origin: null" on form posts and the CSRF check above blocks every
+    # click. same-origin still never leaks URLs to other sites.
+    response.headers["Referrer-Policy"] = "same-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if ON_VERCEL:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
