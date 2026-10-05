@@ -60,6 +60,10 @@ def log_in(request: Request, user: User) -> None:
     # A fresh session on every login, so nothing from before it carries over.
     request.session.clear()
     request.session["user_id"] = user.id
+    # The email pins the cookie to *this* account: if an id were ever
+    # reused (SQLite does after a delete), an old cookie still can't open
+    # someone else's account.
+    request.session["email"] = user.email
 
 
 def log_out(request: Request) -> None:
@@ -70,7 +74,10 @@ def current_user(request: Request, db: Session) -> User | None:
     user_id = request.session.get("user_id")
     if not isinstance(user_id, int):
         return None
-    return db.get(User, user_id)
+    user = db.get(User, user_id)
+    if user is None or user.email != request.session.get("email"):
+        return None
+    return user
 
 
 def require_user(request: Request, db: Session = Depends(get_db)) -> User:

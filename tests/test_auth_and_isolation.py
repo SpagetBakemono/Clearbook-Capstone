@@ -430,3 +430,48 @@ def test_browser_form_posts_are_not_blocked(started):
     # while "null" and foreign origins stay blocked
     assert client().post("/demo", headers={"Origin": "null"}).status_code == 403
     assert client().post("/demo", headers={"Origin": "https://evil.example"}).status_code == 403
+
+
+def test_demo_visitor_can_sign_up_from_the_banner(started):
+    from app.database import SessionLocal
+    from app.models import User
+
+    c = client()
+    c.post("/demo")
+    assert 'href="/signup"' in c.get("/").text  # the banner's Sign up link
+    page = c.get("/signup", follow_redirects=False)
+    assert page.status_code == 200 and "Create your account" in page.text  # not bounced to the dashboard
+    db = SessionLocal()
+    demo_id = db.query(User).filter_by(is_demo=True).order_by(User.id.desc()).first().id
+    db.close()
+    r = c.post("/signup", data={"email": "from-demo@example.com", "password": "from-demo-123",
+                                "confirm": "from-demo-123"}, follow_redirects=False)
+    assert r.headers["location"] == "/setup/plaid"
+    db = SessionLocal()
+    # demo cleaned up (SQLite may reuse the id for the new account, so check the flag)
+    assert db.query(User).filter_by(id=demo_id, is_demo=True).count() == 0
+    assert db.query(User).filter_by(email="from-demo@example.com").one()
+    db.close()
+    assert "made-up data" not in c.get("/").text    # now a real, empty account
+
+
+def test_old_cookie_cannot_open_a_reused_id(started):
+    """A session from a deleted demo must not open whichever account later
+    gets the same id."""
+    from app.database import SessionLocal
+    from app.models import User
+
+    old = client()
+    old.post("/demo")
+    stale_cookie = old.cookies.get("clearbook_session")
+    db = SessionLocal()
+    demo = db.query(User).filter_by(is_demo=True).order_by(User.id.desc()).first()
+    demo_id = demo.id
+    from app.demo import delete_demo_users
+    delete_demo_users(db, [demo_id])
+    db.add(User(id=demo_id, email="reuses-id@example.com", password_hash="x", password_salt="y"))
+    db.commit(); db.close()
+
+    c = client()
+    c.cookies.set("clearbook_session", stale_cookie)
+    assert c.get("/", follow_redirects=False).headers["location"] == "/landing"

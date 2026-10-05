@@ -35,7 +35,18 @@ BAD_LOGIN = "Email or password is incorrect."
 
 
 def _home_if_logged_in(request: Request, db: Session):
-    return RedirectResponse(url="/", status_code=303) if current_user(request, db) else None
+    # A demo visitor is welcome on Log in / Sign up -- that's how they leave
+    # the demo for a real account.
+    user = current_user(request, db)
+    return RedirectResponse(url="/", status_code=303) if user and not user.is_demo else None
+
+
+def _end_demo_if_any(request: Request, db: Session) -> None:
+    """Switching from the demo to a real account: the demo's made-up data
+    has no further use, so delete it now rather than after 24h."""
+    user = current_user(request, db)
+    if user is not None and user.is_demo:
+        delete_demo_users(db, [user.id])
 
 
 @router.get("/landing")
@@ -69,6 +80,7 @@ def login(
         return fail(BAD_LOGIN)
 
     clear_failures(email)
+    _end_demo_if_any(request, db)
     log_in(request, user)
     # Fresh bank data for this user, fetched after the redirect goes out.
     background.add_task(sync_user_accounts, user.id)
@@ -103,6 +115,7 @@ def signup(
     if find_user(db, email_clean) is not None:
         return fail("An account with that email already exists. Try logging in.")
 
+    _end_demo_if_any(request, db)
     password_hash, salt = hash_password(password)
     user = User(email=email_clean, password_hash=password_hash, password_salt=salt)
     db.add(user)
