@@ -34,12 +34,15 @@ never be touched from here).
    accounts with back-filled opening balance -> dashboard; "Load demo
    data" fallback.
 5. ~~Serverless fixes~~ Done: `api/index.py` entry + `vercel.json`
-   (rewrite everything to it), Postgres via psycopg 3 + NullPool
+   (legacy `builds` + `routes` -- a `rewrites` rule handed FastAPI the
+   rewritten path /api/index and every page 404'd), Postgres via psycopg 3 + NullPool
    (`app/database.py` refuses to run on Vercel without DATABASE_URL), no
    sync thread when `VERCEL` is set, trusted hosts from Vercel's own
    `VERCEL_*URL` vars + `ALLOWED_HOSTS`, CSRF compares hosts (proxy-safe),
    security headers middleware, Python pinned to 3.12.
-6. Deploy (owner creates Vercel project + Neon + env vars).
+6. ~~Deploy~~ Live at https://clearbook-capstone.vercel.app (GitHub:
+   SpagetBakemono/Clearbook-Capstone, auto-deploys on push to main; Neon
+   connected with prefix DATABASE so `DATABASE_URL` is set).
 
 # Working conventions for this repo
 

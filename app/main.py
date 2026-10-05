@@ -133,18 +133,3 @@ def on_startup():
     if not ON_VERCEL:
         threading.Thread(target=sync_periodically, daemon=True).start()
 
-
-# TEMPORARY deployment diagnostic -- remove once routing on Vercel is confirmed.
-from starlette.exceptions import HTTPException as _StarletteHTTPException  # noqa: E402
-from fastapi.responses import JSONResponse as _JSONResponse  # noqa: E402
-
-
-@app.exception_handler(_StarletteHTTPException)
-async def _debug_not_found(request: Request, exc: _StarletteHTTPException):
-    if exc.status_code == 404 and ON_VERCEL:
-        return _JSONResponse(
-            {"detail": "Not Found", "path": request.scope.get("path"),
-             "root_path": request.scope.get("root_path"), "raw_path": (request.scope.get("raw_path") or b"").decode()},
-            status_code=404,
-        )
-    return _JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
