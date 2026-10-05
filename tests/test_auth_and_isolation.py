@@ -416,3 +416,17 @@ def test_empty_states_depend_on_plaid_keys(started):
         c.post("/setup/plaid", data={"client_id": FAKE_CLIENT_ID, "secret": FAKE_SECRET})
     page = c.get("/").text
     assert "No accounts connected" in page and "set up yet" not in page and "Add an account" in page
+
+
+def test_browser_form_posts_are_not_blocked(started):
+    """Regression: Referrer-Policy: no-referrer made browsers send
+    'Origin: null' on form posts, and the CSRF check blocked every button.
+    The policy must let the browser identify the site to itself."""
+    r = client().get("/landing")
+    assert r.headers["referrer-policy"] in ("same-origin", "strict-origin", "strict-origin-when-cross-origin")
+    # a same-site browser post (with its Origin header) goes through
+    ok = client().post("/demo", headers={"Origin": BASE}, follow_redirects=False)
+    assert ok.status_code == 303
+    # while "null" and foreign origins stay blocked
+    assert client().post("/demo", headers={"Origin": "null"}).status_code == 403
+    assert client().post("/demo", headers={"Origin": "https://evil.example"}).status_code == 403
