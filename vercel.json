@@ -1,6 +1,6 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
-  "functions": {
-    "api/index.py": { "maxDuration": 30, "includeFiles": "app/**" }
-  }
+  "builds": [
+    { "src": "api/index.py", "use": "@vercel/python", "config": { "includeFiles": ["app/**"] } }
+  ],
+  "routes": [{ "src": "/(.*)", "dest": "api/index.py" }]
 }
