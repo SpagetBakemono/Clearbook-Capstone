@@ -411,11 +411,12 @@ def test_empty_states_depend_on_plaid_keys(started):
     c = client()
     signup(c, "empty2@example.com")
     page = c.get("/").text
-    assert "No accounts connected" in page and "set up yet" in page and 'href="/setup/plaid"' in page
+    assert "No accounts connected" in page and 'href="/setup/plaid"' in page and "log expenses by hand" in page
+    assert "Connect a bank" not in page
     with patch.object(auth_routes, "create_link_token", return_value="ok"):
         c.post("/setup/plaid", data={"client_id": FAKE_CLIENT_ID, "secret": FAKE_SECRET})
     page = c.get("/").text
-    assert "No accounts connected" in page and "set up yet" not in page and "Add an account" in page
+    assert "No accounts connected" in page and "Connect a bank" in page and "log expenses by hand" in page
 
 
 def test_browser_form_posts_are_not_blocked(started):
@@ -475,3 +476,100 @@ def test_old_cookie_cannot_open_a_reused_id(started):
     c = client()
     c.cookies.set("clearbook_session", stale_cookie)
     assert c.get("/", follow_redirects=False).headers["location"] == "/landing"
+
+
+# ------------------------------------------------- final-submission flows
+
+def test_log_expenses_by_hand_from_empty_dashboard(started):
+    from app.database import SessionLocal
+    from app.models import Account, User
+
+    c = client()
+    signup(c, "byhand@example.com")
+    assert "log expenses by hand" in c.get("/").text
+    r = c.post("/manual/start", follow_redirects=False)
+    assert r.headers["location"] == "/manual"
+    c.post("/manual/start")  # a second click doesn't make a second Cash account
+    db = SessionLocal()
+    uid = db.query(User).filter_by(email="byhand@example.com").one().id
+    assert [a.name for a in db.query(Account).filter_by(user_id=uid)] == ["Cash"]
+    db.close()
+    assert "Cash" in c.get("/manual").text
+
+
+def test_connect_a_bank_creates_accounts_with_history(started):
+    """One click: Plaid's accounts become Clearbook accounts, history is
+    synced, and the opening balance makes the app agree with the bank."""
+    from datetime import date
+    from decimal import Decimal as D
+    from unittest.mock import patch
+
+    import app.plaid_sync as ps
+    import app.routers.auth as auth_routes
+    import app.routers.plaid_routes as pr
+    from app.database import SessionLocal
+    from app.models import Account, User
+    from app.services import get_account_balance
+
+    c = client()
+    signup(c, "connect@example.com")
+    with patch.object(auth_routes, "create_link_token", return_value="ok"):
+        c.post("/setup/plaid", data={"client_id": FAKE_CLIENT_ID, "secret": FAKE_SECRET})
+    assert "Connect a bank" in c.get("/").text
+
+    plaid_accounts = [
+        {"plaid_account_id": "chk", "name": "Plaid Checking", "type": "depository", "mask": "0000"},
+        {"plaid_account_id": "cc", "name": "Plaid Credit Card", "type": "credit", "mask": "3333"},
+        {"plaid_account_id": "loan", "name": "Plaid Student Loan", "type": "loan", "mask": "7777"},
+    ]
+    def t(pid, d, amt, out=True, merchant="Coffee"):
+        return dict(plaid_id=pid, pending_plaid_id=None, date=d, amount=D(amt), outflow=out, merchant=merchant,
+                    pending=False, category_primary="FOOD_AND_DRINK", category_detailed=None)
+    history = {
+        "chk": [t("c1", date(2026, 8, 3), "40.00"), t("c2", date(2026, 8, 20), "500.00", out=False, merchant="Payroll")],
+        "cc": [t("k1", date(2026, 8, 5), "25.00"), t("k2", date(2026, 9, 1), "15.00")],
+    }
+    bank = {"chk": D("1460.00"), "cc": D("410.00")}
+    with patch.object(pr, "exchange_public_token", return_value="access-tok"), \
+         patch.object(pr, "get_accounts", return_value=plaid_accounts), \
+         patch.object(ps, "sync_transactions", side_effect=lambda creds, tok, aid, cur: dict(added=history[aid], modified=[], removed=[], next_cursor="c1")), \
+         patch.object(ps, "get_balance", side_effect=lambda creds, tok, aid: bank[aid]):
+        r = c.post("/plaid/connect-bank", json={"public_token": "public-sandbox-x"})
+    assert r.status_code == 200, r.text
+
+    db = SessionLocal()
+    uid = db.query(User).filter_by(email="connect@example.com").one().id
+    accts = {a.plaid_account_id: a for a in db.query(Account).filter_by(user_id=uid)}
+    assert set(accts) == {"chk", "cc"}  # the loan isn't tracked
+    for aid in ("chk", "cc"):
+        a = accts[aid]
+        assert get_account_balance(db, a) == bank[aid]  # app agrees with the bank
+        assert a.opening_balance_date == min(x["date"] for x in history[aid])  # history all counts
+    assert accts["chk"].opening_balance == D("1000.00")  # 1460 - 500 + 40
+    db.close()
+    page = c.get("/").text
+    assert "Plaid Checking" in page and "No accounts connected" not in page
+
+
+def test_friendly_404_page(started):
+    r = client().get("/no-such-page", headers={"Accept": "text/html"})
+    assert r.status_code == 404 and "Page not found" in r.text and "Back to Clearbook" in r.text
+    c = client()
+    signup(c, "nf@example.com")
+    r = c.get("/transactions/999999/edit", headers={"Accept": "text/html"})
+    assert r.status_code == 404 and "Page not found" in r.text
+
+
+def test_demo_is_capped_per_visitor(started):
+    import app.routers.auth as auth_routes
+
+    auth_routes._demo_starts.clear()
+    ip = {"X-Forwarded-For": "203.0.113.9"}
+    for _ in range(auth_routes.DEMOS_PER_IP_PER_HOUR):
+        assert client().post("/demo", headers=ip, follow_redirects=False).headers["location"] == "/"
+    r = client().post("/demo", headers=ip, follow_redirects=False)
+    assert r.headers["location"] == "/landing?demo=busy"
+    assert "demo is busy" in client().get("/landing?demo=busy").text
+    # a different visitor is unaffected
+    assert client().post("/demo", headers={"X-Forwarded-For": "198.51.100.4"}, follow_redirects=False).headers["location"] == "/"
+    auth_routes._demo_starts.clear()

@@ -652,3 +652,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .accounts-table td:last-child, .accounts-table th:last-child { padding-right: 4px; text-align: right; }
 .accounts-table .sync-cell { gap: 12px; min-height: 28px; }
 .accounts-table .badge { vertical-align: middle; }
+
+/* "Connect a bank" + its status line; text-style button for "log by hand". */
+.accounts-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: -4px 0 6px; }
+.connect-status { font-size: 13px; color: var(--muted); margin: 8px 0 0; min-height: 1em; }
+.connect-status:empty { display: none; }
+.connect-status.is-error { color: var(--danger); }
+.link-button { background: none; border: none; padding: 0; width: auto; color: var(--link); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+.link-button:hover { opacity: 1; text-decoration-thickness: 2px; }
+.link-button:focus-visible { outline: 3px solid var(--chart-line); outline-offset: 2px; border-radius: 3px; }

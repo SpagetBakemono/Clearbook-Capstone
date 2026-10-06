@@ -10,7 +10,13 @@
   <p style="margin: 0; font-size: 14px;">To connect a bank, first add your Plaid keys. <a href="/setup/plaid">Add Plaid keys</a></p>
 </div>
 {% else %}
-<p class="stat-sub" style="margin: -4px 0 12px;">Using your Plaid Sandbox keys. <a href="/setup/plaid">Change keys</a></p>
+<div class="accounts-actions">
+  <button type="button" class="btn-sm btn-sm-accent" data-connect-bank data-status="#connect-status">Connect a bank</button>
+  <span class="stat-sub">Using your Plaid Sandbox keys. <a href="/setup/plaid">Change keys</a></span>
+</div>
+<p id="connect-status" class="connect-status" role="status"></p>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<script src="/static/connect-bank.js?v={{ static_version('connect-bank.js') }}" defer></script>
 {% endif %}
 {% for note in balance_drift %}
 <p class="stat-sub" style="margin: 0 0 8px;">{{ note }}</p>
@@ -60,7 +66,6 @@
   </tbody>
 </table>
 
-<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 <script>
 function plaidStatus(accountId, text, isError) {
   const el = document.querySelector(`.plaid-status[data-account-id="${accountId}"]`);

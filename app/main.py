@@ -4,6 +4,7 @@ import threading
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -15,6 +16,7 @@ from app.database import ON_VERCEL, Base, SessionLocal, engine
 from app.plaid_sync import sync_periodically
 from app.routers import accounts, auth, dashboard, imports, plaid_routes, transactions, trends
 from app.services import seed_default_categories
+from app.templating import templates
 
 # No interactive API docs -- nothing uses them, and they'd publish the
 # full endpoint map to anything that can reach the server.
@@ -61,6 +63,31 @@ async def security_headers(request: Request, call_next):
     if ON_VERCEL:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
+
+
+@app.exception_handler(StarletteHTTPException)
+async def friendly_errors(request: Request, exc: StarletteHTTPException):
+    """A styled page for browsers; plain text for everything else."""
+    if "text/html" not in request.headers.get("accept", ""):
+        return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
+    title, message = {
+        404: ("Page not found", "That page doesn't exist, or it isn't yours to see."),
+        403: ("Not allowed", "That action isn't available here."),
+    }.get(exc.status_code, ("Something went wrong", "Please try again in a moment."))
+    return templates.TemplateResponse(
+        request, "error.html", {"title": title, "message": message}, status_code=exc.status_code
+    )
+
+
+@app.exception_handler(Exception)
+async def server_error(request: Request, exc: Exception):
+    # Never show a stack trace to a visitor; the details go to the logs.
+    print(f"[error] {request.method} {request.url.path}: {exc!r}", flush=True)
+    return templates.TemplateResponse(
+        request, "error.html",
+        {"title": "Something went wrong", "message": "That didn't work. Please try again in a moment."},
+        status_code=500,
+    )
 
 
 @app.exception_handler(LoginRequired)

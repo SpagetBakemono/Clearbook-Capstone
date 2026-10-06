@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.auth import require_user
 from app.database import get_db
 from app.models import (
+    Account,
+    AccountType,
     Category,
     ReimbursementStatus,
     Transaction,
@@ -63,6 +65,17 @@ def manual_page(request: Request, db: Session, user: User):
 @router.get("/manual")
 def manual(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
     return manual_page(request, db, user)
+
+
+@router.post("/manual/start")
+def manual_start(user: User = Depends(require_user), db: Session = Depends(get_db)):
+    """'Log expenses by hand' from the empty dashboard: make sure there's
+    an account to log against (a Cash account), then open the form."""
+    if not get_user_accounts(db, user.id):
+        db.add(Account(user_id=user.id, name="Cash", type=AccountType.CASH,
+                       opening_balance=0, opening_balance_date=date.today()))
+        db.commit()
+    return RedirectResponse(url="/manual", status_code=303)
 
 
 @router.get("/transactions/new")

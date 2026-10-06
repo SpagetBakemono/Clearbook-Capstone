@@ -1,7 +1,10 @@
 import re
+import time
+from collections import defaultdict, deque
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import (
@@ -51,7 +54,9 @@ def _end_demo_if_any(request: Request, db: Session) -> None:
 
 @router.get("/landing")
 def landing(request: Request, db: Session = Depends(get_db)):
-    return _home_if_logged_in(request, db) or templates.TemplateResponse(request, "landing.html", {})
+    return _home_if_logged_in(request, db) or templates.TemplateResponse(
+        request, "landing.html", {"demo_busy": request.query_params.get("demo") == "busy"}
+    )
 
 
 @router.get("/login")
@@ -125,10 +130,32 @@ def signup(
     return RedirectResponse(url="/setup/plaid", status_code=303)
 
 
+# "View a demo" writes a few hundred rows to a free database, so cap it:
+# per visitor (in memory -- best-effort across serverless instances) and in
+# total (checked in the database).
+DEMOS_PER_IP_PER_HOUR = 20
+MAX_ACTIVE_DEMOS = 200
+_demo_starts: dict[str, deque] = defaultdict(deque)
+
+
+def _client_ip(request: Request) -> str:
+    # On Vercel the visitor's address arrives in X-Forwarded-For.
+    forwarded = request.headers.get("x-forwarded-for", "")
+    return forwarded.split(",")[0].strip() or (request.client.host if request.client else "?")
+
+
 @router.post("/demo")
 def start_demo(request: Request, db: Session = Depends(get_db)):
     """A fresh, private demo account full of made-up data (app/demo.py)."""
     delete_stale_demo_users(db)
+    starts = _demo_starts[_client_ip(request)]
+    cutoff = time.monotonic() - 3600
+    while starts and starts[0] < cutoff:
+        starts.popleft()
+    active = db.scalar(select(func.count(User.id)).where(User.is_demo == True))  # noqa: E712
+    if len(starts) >= DEMOS_PER_IP_PER_HOUR or active >= MAX_ACTIVE_DEMOS:
+        return RedirectResponse(url="/landing?demo=busy", status_code=303)
+    starts.append(time.monotonic())
     user = create_demo_user(db)
     log_in(request, user)
     return RedirectResponse(url="/", status_code=303)

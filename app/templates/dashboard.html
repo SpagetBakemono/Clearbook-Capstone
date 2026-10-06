@@ -5,14 +5,21 @@
 <div class="empty-state">
   <h2>No accounts connected</h2>
   {% if not has_plaid_keys %}
-  <p>Plaid isn't set up yet, so Clearbook can't read a bank.</p>
+  <p>Add your Plaid keys to connect a bank, or keep it simple and log expenses yourself.</p>
   <a class="btn-primary" href="/setup/plaid">Set up Plaid</a>
-  <p class="empty-state-alt">or <a href="/accounts/new">add a cash account by hand</a></p>
   {% else %}
-  <p>Connect a bank account and your spending shows up here.</p>
-  <a class="btn-primary" href="/accounts">Add an account</a>
+  <p>Connect a bank and your spending shows up here.</p>
+  <button type="button" class="btn-primary" data-connect-bank data-status="#connect-status">Connect a bank</button>
+  <p id="connect-status" class="connect-status" role="status"></p>
   {% endif %}
+  <form method="post" action="/manual/start" class="empty-state-alt">
+    or <button type="submit" class="link-button">log expenses by hand</button>
+  </form>
 </div>
+{% if has_plaid_keys %}
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<script src="/static/connect-bank.js?v={{ static_version('connect-bank.js') }}" defer></script>
+{% endif %}
 {% else %}
 {% include "_sync_alerts.html" %}
 

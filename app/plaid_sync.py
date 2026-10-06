@@ -18,7 +18,7 @@ What stands in for a human reviewer:
 """
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, or_, select
@@ -93,6 +93,30 @@ NEEDS_USER_ERRORS = {
     "ACCESS_NOT_GRANTED",
     "NO_ACCOUNTS",
 }
+
+
+# An account created by "Connect a bank" starts with this placeholder
+# opening date, meaning "history not in yet": every synced transaction
+# counts, and once the first ones arrive the opening balance is
+# back-computed from the bank's balance (settle_opening_balance).
+HISTORY_PENDING = date(2000, 1, 1)
+
+
+def settle_opening_balance(db: Session, account: Account, bank_balance: Decimal) -> None:
+    """For a bank-connected account: choose the opening balance so the
+    app's posted balance equals the bank's, and date it at the earliest
+    synced transaction -- so the full history shows *and* the balance is
+    right. Until transactions arrive, the balance is just the bank's."""
+    activity = _posted_balance(db, account) - account.opening_balance
+    account.opening_balance = bank_balance - activity
+    earliest = db.scalar(
+        select(func.min(Transaction.date)).where(
+            or_(Transaction.account_id == account.id, Transaction.to_account_id == account.id)
+        )
+    )
+    if earliest is not None:
+        account.opening_balance_date = earliest
+    db.commit()
 
 
 class NoPlaidKeys(RuntimeError):
@@ -482,6 +506,8 @@ def sync_plaid_account(db: Session, account: Account) -> int:
     db.commit()
 
     bank_balance = get_balance(creds, token, account.plaid_account_id)
+    if bank_balance is not None and account.opening_balance_date == HISTORY_PENDING:
+        settle_opening_balance(db, account, bank_balance)
     app_balance = _posted_balance(db, account)
     matches = None
     if bank_balance is not None:

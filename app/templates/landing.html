@@ -10,6 +10,7 @@
   <a class="btn-primary" href="/login">Log in</a>
   <a class="btn-secondary" href="/signup">Sign up</a>
 </div>
+{% if demo_busy %}<p class="form-notice" role="status">The demo is busy right now. Try again in a little while, or sign up -- it's free.</p>{% endif %}
 <form method="post" action="/demo" class="demo-link">
   <button type="submit">Just looking? <span>View a demo</span></button>
 </form>
