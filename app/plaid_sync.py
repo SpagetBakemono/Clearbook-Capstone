@@ -212,13 +212,16 @@ def _refund_category(db: Session, account: Account, t: dict) -> int | None:
     return db.scalar(select(Category.id).where(Category.name == name, Category.kind == CategoryKind.EXPENSE))
 
 
-def _find_by_plaid_id(db: Session, plaid_id: str) -> Transaction | None:
+def _find_by_plaid_id(db: Session, account: Account, plaid_id: str) -> Transaction | None:
+    # Only among this user's own transactions (security review: Plaid's
+    # ids are unique, but nothing here should ever reach another user's rows).
     return db.scalar(
         select(Transaction).where(
+            Transaction.account_id.in_(owned_account_ids(account.user_id)),
             or_(
                 Transaction.plaid_transaction_id == plaid_id,
                 Transaction.plaid_pair_transaction_id == plaid_id,
-            )
+            ),
         )
     )
 
@@ -336,11 +339,11 @@ def _funded_wallet(db: Session, account: Account, t: dict) -> Account | None:
 
 def _apply_added(db: Session, account: Account, t: dict, adopt_only: bool) -> bool:
     """Returns True if a new ledger row was created."""
-    if _find_by_plaid_id(db, t["plaid_id"]):
+    if _find_by_plaid_id(db, account, t["plaid_id"]):
         return False  # already posted -- re-syncs are harmless
 
     if t["pending_plaid_id"]:
-        row = _find_by_plaid_id(db, t["pending_plaid_id"])
+        row = _find_by_plaid_id(db, account, t["pending_plaid_id"])
         if row:  # a pending charge just posted: update it in place
             if row.plaid_transaction_id == t["pending_plaid_id"]:
                 row.plaid_transaction_id = t["plaid_id"]
@@ -398,8 +401,13 @@ def _apply_added(db: Session, account: Account, t: dict, adopt_only: bool) -> bo
     return True
 
 
-def _apply_modified(db: Session, t: dict) -> None:
-    row = db.scalar(select(Transaction).where(Transaction.plaid_transaction_id == t["plaid_id"]))
+def _apply_modified(db: Session, account: Account, t: dict) -> None:
+    row = db.scalar(
+        select(Transaction).where(
+            Transaction.account_id.in_(owned_account_ids(account.user_id)),
+            Transaction.plaid_transaction_id == t["plaid_id"],
+        )
+    )
     if row:
         row.amount, row.date, row.pending = t["amount"], t["date"], t["pending"]
 
@@ -447,8 +455,8 @@ def _explained_by_settling(gap: Decimal, pending_effects: list[Decimal]) -> bool
     return target in reachable
 
 
-def _apply_removed(db: Session, plaid_id: str) -> None:
-    row = _find_by_plaid_id(db, plaid_id)
+def _apply_removed(db: Session, account: Account, plaid_id: str) -> None:
+    row = _find_by_plaid_id(db, account, plaid_id)
     if row is None:
         return
     if row.plaid_pair_transaction_id is None:
@@ -497,9 +505,9 @@ def sync_plaid_account(db: Session, account: Account) -> int:
         created += _apply_added(db, account, t, adopt_only)
         db.flush()  # later matches in this batch must see earlier ones
     for t in result["modified"]:
-        _apply_modified(db, t)
+        _apply_modified(db, account, t)
     for plaid_id in result["removed"]:
-        _apply_removed(db, plaid_id)
+        _apply_removed(db, account, plaid_id)
         db.flush()
 
     account.plaid_cursor = result["next_cursor"]

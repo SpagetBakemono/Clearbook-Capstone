@@ -573,3 +573,39 @@ def test_demo_is_capped_per_visitor(started):
     # a different visitor is unaffected
     assert client().post("/demo", headers={"X-Forwarded-For": "198.51.100.4"}, follow_redirects=False).headers["location"] == "/"
     auth_routes._demo_starts.clear()
+
+
+def test_bank_updates_only_touch_the_syncing_users_rows(started):
+    """Security review fix: a sync's 'modified' / 'removed' updates are
+    looked up only among the syncing user's own transactions."""
+    from datetime import date
+    from decimal import Decimal as D
+    from unittest.mock import patch
+
+    import app.plaid_sync as ps
+    from app.database import SessionLocal
+    from app.models import Account, AccountType, Transaction, TransactionType, User
+
+    db = SessionLocal()
+    ua = User(email="scope-a@iso.test", password_hash="x", password_salt="y", plaid_client_id="a", plaid_secret="a")
+    ub = User(email="scope-b@iso.test", password_hash="x", password_salt="y", plaid_client_id="b", plaid_secret="b")
+    db.add_all([ua, ub]); db.commit()
+    a_acct = Account(user_id=ua.id, name="A Chk", type=AccountType.CHECKING, opening_balance=D(0),
+                     opening_balance_date=date(2026, 9, 1), plaid_access_token="t", plaid_cursor="c")
+    b_acct = Account(user_id=ub.id, name="B Chk", type=AccountType.CHECKING, opening_balance=D(0),
+                     opening_balance_date=date(2026, 9, 1))
+    db.add_all([a_acct, b_acct]); db.commit()
+    # B owns a row carrying a given Plaid id
+    db.add(Transaction(date=date(2026, 9, 10), amount=D("50.00"), type=TransactionType.EXPENSE,
+                       account_id=b_acct.id, plaid_transaction_id="shared-id", note="B's row"))
+    db.commit()
+    modified = [dict(plaid_id="shared-id", pending_plaid_id=None, date=date(2026, 9, 11), amount=D("1.00"),
+                     outflow=True, merchant="x", pending=False, category_primary=None, category_detailed=None)]
+    res = dict(added=[], modified=modified, removed=["shared-id"], next_cursor="c2")
+    with patch.object(ps, "sync_transactions", return_value=res), \
+         patch.object(ps, "get_balance", return_value=None), \
+         patch.object(ps, "decrypt_token", return_value="tok"):
+        ps.sync_plaid_account(db, a_acct)  # A's sync names B's Plaid id
+    row = db.query(Transaction).filter_by(note="B's row").one_or_none()
+    assert row is not None and row.amount == D("50.00")  # untouched, not deleted
+    db.close()
