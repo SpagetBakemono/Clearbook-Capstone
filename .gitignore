@@ -8,3 +8,4 @@ __pycache__/
 .vercel/
 dev.db
 vercel-secrets.local.txt
+neon.local.txt

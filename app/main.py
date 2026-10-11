@@ -144,12 +144,23 @@ app.include_router(imports.router)
 app.include_router(plaid_routes.router)
 
 
+def add_missing_columns():
+    """create_all() only creates missing tables; columns added to an
+    existing table since it was created are added here."""
+    from sqlalchemy import inspect, text
+
+    if "plaid_env" not in {c["name"] for c in inspect(engine).get_columns("users")}:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN plaid_env VARCHAR(16) DEFAULT 'sandbox'"))
+
+
 @app.on_event("startup")
 def on_startup():
     # Dev-friendly: creates tables if they don't exist yet (SQLite by
     # default). For Prod we'll switch to real migrations (Alembic) once
     # the schema stabilizes -- fine to auto-create for now.
     Base.metadata.create_all(bind=engine)
+    add_missing_columns()
     db = SessionLocal()
     try:
         seed_default_categories(db)

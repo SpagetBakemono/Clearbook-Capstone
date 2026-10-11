@@ -67,7 +67,7 @@ class User(Base):
     password_salt: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # The user's own Plaid Sandbox keys (Clearbook has none of its own).
+    # The user's own Plaid keys (Clearbook has none of its own).
     # The secret is Fernet-encrypted (app/token_crypto.py) and only ever
     # decrypted in memory to make a Plaid call; never sent to the browser.
     # A throwaway "View demo" visitor (app/demo.py): generated data, no
@@ -76,6 +76,8 @@ class User(Base):
 
     plaid_client_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     plaid_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # "sandbox" (test banks) or "production" (real banks).
+    plaid_env: Mapped[str] = mapped_column(String(16), default="sandbox")
 
     accounts: Mapped[list["Account"]] = relationship(back_populates="user")
 

@@ -14,8 +14,10 @@ GitHub `SpagetBakemono/Clearbook-Capstone`).
   `DATABASE_URL` is set) holds everyone's data. psycopg 3 + `NullPool`
   (serverless). `app/database.py` refuses to start on Vercel without
   `DATABASE_URL`; locally it falls back to a throwaway `dev.db` (SQLite).
-- **Plaid Sandbox only, with each user's own keys** (entered at
-  `/setup/plaid`, secret Fernet-encrypted on `User`). Clearbook has no
+- **Plaid with each user's own keys**, Sandbox or Production per user
+  (`User.plaid_env`; entered at `/setup/plaid`, secret Fernet-encrypted
+  on `User`). New columns on existing tables go in `add_missing_columns()`
+  in `main.py` -- `create_all()` won't add them. Clearbook has no
   Plaid keys of its own -- never put Plaid keys in env or code. Every
   `plaid_client` call takes the user's `PlaidCreds` (`creds_for(user)`).
 - Bank sync runs on login, on "Sync now", and right after "Connect a bank".
@@ -75,7 +77,7 @@ stale.
 ## Onboarding and demo
 
 - **Sign up**, then `/setup/plaid`:
-  - a 4-step walkthrough plus Client ID / Sandbox secret fields;
+  - a 4-step walkthrough plus Client ID / Sandbox-or-Production / secret fields;
   - the keys are checked with a link-token call before saving;
   - "Skip for now" is allowed.
 - **Empty dashboard:**

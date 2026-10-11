@@ -44,6 +44,7 @@ def list_accounts(
         {
             "balances": balances,
             "has_plaid_keys": bool(user.plaid_secret),
+            "plaid_env_label": "real banks" if user.plaid_env == "production" else "Sandbox test banks",
             "last_sync_by_account": last_sync_by_account,
             "sync_alerts": get_sync_alerts(db, user_id=user.id),
             "balance_drift": get_balance_drift(db, user_id=user.id),

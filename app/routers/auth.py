@@ -182,10 +182,10 @@ def _friendly_plaid_error(e: Exception) -> str:
     if code in ("INVALID_API_KEYS", "INVALID_CLIENT_ID", "INVALID_SECRET"):
         return (
             "Plaid didn't accept those keys. Check you copied the Client ID and the "
-            "Sandbox secret (not the Production one) from the same team."
+            "secret for the environment you picked (Sandbox or Production)."
         )
     if code == "UNAUTHORIZED_ENVIRONMENT":
-        return "Those keys aren't enabled for Sandbox. Copy the Sandbox secret from the Plaid dashboard."
+        return "Those keys aren't enabled for that environment. Pick Sandbox, or ask Plaid for Production access first."
     return "Couldn't reach Plaid to check the keys. Try again in a moment."
 
 
@@ -196,7 +196,8 @@ def plaid_setup_form(request: Request, user: User = Depends(require_user)):
     return templates.TemplateResponse(
         request,
         "plaid_setup.html",
-        {"has_keys": bool(user.plaid_secret), "client_id": user.plaid_client_id},
+        {"has_keys": bool(user.plaid_secret), "client_id": user.plaid_client_id,
+         "plaid_env": user.plaid_env or "sandbox"},
     )
 
 
@@ -205,18 +206,21 @@ def plaid_setup(
     request: Request,
     client_id: str = Form(""),
     secret: str = Form(""),
+    env: str = Form("sandbox"),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
     if user.is_demo:
         return RedirectResponse(url="/", status_code=303)
     client_id, secret = client_id.strip(), secret.strip()
+    env = "production" if env == "production" else "sandbox"
 
     def fail(message: str):
         return templates.TemplateResponse(
             request,
             "plaid_setup.html",
-            {"error": message, "client_id": client_id, "has_keys": bool(user.plaid_secret)},
+            {"error": message, "client_id": client_id, "has_keys": bool(user.plaid_secret),
+             "plaid_env": env},
             status_code=400,
         )
 
@@ -224,13 +228,14 @@ def plaid_setup(
         return fail("That doesn't look like a Plaid key -- both are long strings of letters and numbers.")
 
     # Prove the keys work before saving them: a link token is the cheapest
-    # call that needs a valid client ID + Sandbox secret pair.
+    # call that needs a valid client ID + secret pair for that environment.
     try:
-        create_link_token(PlaidCreds(client_id, secret), f"clearbook-user-{user.id}")
+        create_link_token(PlaidCreds(client_id, secret, env), f"clearbook-user-{user.id}")
     except Exception as e:  # Plaid rejected them, or network trouble
         return fail(_friendly_plaid_error(e))
 
     user.plaid_client_id = client_id
     user.plaid_secret = encrypt_token(secret)
+    user.plaid_env = env
     db.commit()
     return RedirectResponse(url="/", status_code=303)

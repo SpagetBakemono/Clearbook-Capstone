@@ -128,7 +128,7 @@ def creds_for(user) -> PlaidCreds:
     NoPlaidKeys if they haven't added any."""
     if not user.plaid_client_id or not user.plaid_secret:
         raise NoPlaidKeys("Add your Plaid keys first.")
-    return PlaidCreds(user.plaid_client_id, decrypt_token(user.plaid_secret))
+    return PlaidCreds(user.plaid_client_id, decrypt_token(user.plaid_secret), user.plaid_env or "sandbox")
 
 
 def _within(days: int, when):

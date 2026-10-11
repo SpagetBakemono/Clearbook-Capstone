@@ -1,7 +1,7 @@
 """
 Plaid client wrapper -- creates Link tokens, exchanges them for access
 tokens, and syncs transactions. Every call takes the *user's own* Plaid
-Sandbox keys (PlaidCreds) -- Clearbook has no Plaid keys of its own, by
+keys (PlaidCreds) -- Clearbook has no Plaid keys of its own, by
 design. A fresh client per call, no DB access here; app/plaid_sync.py
 decides what happens with the result.
 """
@@ -24,19 +24,21 @@ from plaid.model.transactions_sync_request import TransactionsSyncRequest
 
 @dataclass(frozen=True)
 class PlaidCreds:
-    """One user's Plaid Sandbox keys (decrypted, in memory only)."""
+    """One user's Plaid keys (decrypted, in memory only). env is "sandbox"
+    (Plaid's test banks) or "production" (real banks; needs production
+    access on the user's Plaid account)."""
 
     client_id: str
     secret: str
+    env: str = "sandbox"
 
     def __repr__(self) -> str:  # never let the secret reach a log line
-        return f"PlaidCreds(client_id={self.client_id!r}, secret=***)"
+        return f"PlaidCreds(client_id={self.client_id!r}, secret=***, env={self.env!r})"
 
 
 def _client(creds: PlaidCreds) -> plaid_api.PlaidApi:
-    # Sandbox only: test banks and fake transactions, no real bank data.
     configuration = plaid.Configuration(
-        host=plaid.Environment.Sandbox,
+        host=plaid.Environment.Production if creds.env == "production" else plaid.Environment.Sandbox,
         api_key={"clientId": creds.client_id, "secret": creds.secret},
     )
     # python.org's macOS Python ships without a trusted CA bundle, so TLS

@@ -14,11 +14,13 @@ explore with made-up data, no sign-up needed.
 
 1. **Sign up** with an email and password.
 2. **Connect Plaid** (optional): follow the 4 steps on screen to get free
-   Plaid *Sandbox* keys at dashboard.plaid.com, then paste in the Client ID
-   and Secret. Or **Skip for now**.
+   Plaid keys at dashboard.plaid.com, then paste in the Client ID and
+   Secret. **Sandbox** keys give Plaid's test banks; **Production** keys
+   (free, once Plaid grants your team production access) give real banks.
+   Or **Skip for now**.
 3. On the empty dashboard, either:
-   - **Connect a bank**: in Plaid's window pick any test bank and sign in
-     with `user_good` / `pass_good`. Your accounts and their history appear
+   - **Connect a bank**: with Sandbox keys, pick any test bank and sign in
+     with `user_good` / `pass_good`; with Production keys, your real bank. Your accounts and their history appear
      automatically. Or
    - **log expenses by hand**: a Cash account is created and you can start
      adding transactions on **Manual**.
@@ -32,7 +34,7 @@ explore with made-up data, no sign-up needed.
   and transactions. Filter by month and account.
 - **Trends**: stacked monthly spending and income by category, and your
   balance over time (scroll on the chart to zoom).
-- **Bank sync** (Plaid Sandbox):
+- **Bank sync** (Plaid Sandbox or Production):
   - Transactions post automatically and are categorized.
   - Pending charges update when they settle.
   - Card payments and refunds are handled so nothing is counted twice.
@@ -48,7 +50,7 @@ explore with made-up data, no sign-up needed.
   CSS/JS (charts are hand-drawn SVG; no front-end framework).
 - **Hosting:** Vercel (serverless Python).
 - **Database:** Neon Postgres, through Vercel Storage.
-- **Bank data:** Plaid Sandbox, using each user's own keys. Clearbook has
+- **Bank data:** Plaid (Sandbox or Production), using each user's own keys. Clearbook has
   no Plaid keys of its own.
 - **Security:**
   - Passwords are hashed (scrypt), and each user only ever sees their own

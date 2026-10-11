@@ -311,6 +311,21 @@ def test_plaid_keys_saved_encrypted_after_check(started):
     for path in ["/setup/plaid", "/accounts", "/"]:
         assert FAKE_SECRET not in c.get(path).text, path
     assert "Change keys" in c.get("/accounts").text
+    assert "Sandbox test banks" in c.get("/accounts").text
+
+    # Production keys go to Plaid's Production server (real banks).
+    with patch.object(auth_routes, "create_link_token", return_value="link-production-ok") as called:
+        c.post("/setup/plaid", data={"client_id": FAKE_CLIENT_ID, "secret": FAKE_SECRET, "env": "production"})
+    assert called.call_args.args[0].env == "production"
+    assert "real banks" in c.get("/accounts").text
+    from app.database import SessionLocal
+    from app.models import User
+    from app.plaid_sync import creds_for
+    db = SessionLocal()
+    try:
+        assert creds_for(db.query(User).filter_by(email="keys@example.com").one()).env == "production"
+    finally:
+        db.close()
 
 
 def test_no_keys_means_no_plaid_calls(started):

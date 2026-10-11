@@ -12,6 +12,7 @@
   <li>Sign up with Google or email.</li>
   <li>Pick <strong>Personal finances</strong> as the use case, then <strong>Create team</strong>.</li>
   <li>On the Home page, find the <strong>Sandbox</strong> box (also under <strong>Build&nbsp;&rarr;&nbsp;Keys</strong>). Copy the <strong>Client ID</strong> and the <strong>Secret</strong> into the boxes below.</li>
+  <li>For real banks: request <strong>Production</strong> access in Plaid (free), then use the <strong>Production</strong> secret.</li>
 </ol>
 
 {% if error %}<p class="form-notice is-error" role="alert">{{ error }}</p>{% endif %}
@@ -19,11 +20,16 @@
   <label for="client_id">Client ID</label>
   <input id="client_id" name="client_id" required spellcheck="false" autocapitalize="off"
          value="{{ client_id or '' }}" placeholder="24 letters and numbers" />
-  <label for="secret">Sandbox secret</label>
+  <label for="env">Banks</label>
+  <select id="env" name="env">
+    <option value="sandbox" {{ "selected" if plaid_env != "production" }}>Sandbox -- Plaid's test banks</option>
+    <option value="production" {{ "selected" if plaid_env == "production" }}>Production -- real banks</option>
+  </select>
+  <label for="secret">Secret</label>
   <input id="secret" name="secret" type="password" required spellcheck="false" autocapitalize="off"
          placeholder="{{ 'Saved -- paste a new one to replace it' if has_keys else '30 letters and numbers' }}" />
   <button type="submit" class="btn-primary">Save and continue</button>
 </form>
-<p class="setup-note">We check the keys with Plaid, then store the secret encrypted. It's only used to connect your own test bank, and never shown again.</p>
+<p class="setup-note">We check the keys with Plaid, then store the secret encrypted. It's only used to connect your own banks, and never shown again.</p>
 <p class="panel-switch"><a href="/">{{ "Cancel" if has_keys else "Skip for now" }}</a></p>
 {% endblock %}

@@ -12,7 +12,7 @@
 {% else %}
 <div class="accounts-actions">
   <button type="button" class="btn-sm btn-sm-accent" data-connect-bank data-status="#connect-status">Connect a bank</button>
-  <span class="stat-sub">Using your Plaid Sandbox keys. <a href="/setup/plaid">Change keys</a></span>
+  <span class="stat-sub">Using your Plaid keys ({{ plaid_env_label }}). <a href="/setup/plaid">Change keys</a></span>
 </div>
 <p id="connect-status" class="connect-status" role="status"></p>
 <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
