@@ -187,6 +187,7 @@ def test_users_never_see_or_change_each_others_data(started):
     a.post(f"/accounts/{b_acct}/edit", data={"name": "pwned", "type": "checking",
                                               "opening_balance": "0", "opening_balance_date": "2026-09-01"})
     a.post(f"/accounts/{b_acct}/plaid/disconnect")
+    a.post(f"/accounts/{b_acct}/delete")
 
     con = sqlite3.connect(DB_PATH)
     try:
@@ -624,3 +625,30 @@ def test_bank_updates_only_touch_the_syncing_users_rows(started):
     row = db.query(Transaction).filter_by(note="B's row").one_or_none()
     assert row is not None and row.amount == D("50.00")  # untouched, not deleted
     db.close()
+
+
+def test_delete_account_removes_its_transactions(started):
+    c = client()
+    signup(c, "del@example.com")
+    keep = add_account(c, "Keep Checking", balance="1000")
+    gone = add_account(c, "Test Bank", balance="500")
+    assert add_txn(c, gone, "TEST-BANK-NOISE").status_code == 303
+    transfer = {"type": "transfer", "date": "2026-09-15", "amount": "50", "account_id": keep,
+                "to_account_id": gone, "note": "MOVED-OUT"}
+    assert c.post("/transactions", data=transfer, follow_redirects=False).status_code == 303
+    assert "Delete account" in c.get(f"/accounts/{gone}/edit").text
+
+    assert c.post(f"/accounts/{gone}/delete", follow_redirects=False).status_code == 303
+    accounts = c.get("/accounts").text
+    assert "Test Bank" not in accounts and "Keep Checking" in accounts
+    assert "TEST-BANK-NOISE" not in c.get("/?month=2026-09").text
+    con = sqlite3.connect(DB_PATH)
+    try:
+        assert con.execute("select count(*) from accounts where id=?", (gone,)).fetchone()[0] == 0
+        assert con.execute("select count(*) from transactions where account_id=? or to_account_id=?",
+                           (gone, gone)).fetchone()[0] == 0
+        # The transfer out of the kept account stays there as spending: its balance is unchanged.
+        assert con.execute("select type, account_id from transactions where note='MOVED-OUT'").fetchone() == ("EXPENSE", keep)
+    finally:
+        con.close()
+    assert "950.00" in c.get("/accounts").text

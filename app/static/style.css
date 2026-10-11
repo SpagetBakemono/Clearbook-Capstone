@@ -307,6 +307,8 @@ button:hover { opacity: 0.9; }
 .btn-sm-accent:hover { opacity: 0.9; }
 .btn-sm-outline { background: transparent; color: var(--secondary); border: 1px solid var(--border); }
 .btn-sm-outline:hover { border-color: var(--muted); color: var(--text); }
+.btn-sm-danger { background: transparent; color: var(--danger); border: 1px solid var(--error-border); }
+.btn-sm-danger:hover { background: var(--error-bg); }
 
 /* Toggles (Living/Total, Daily/Weekly/Monthly): CSS-only, no JS -- a
    hidden radio per option, and a `~` general-sibling rule per option

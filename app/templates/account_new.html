@@ -39,6 +39,10 @@
 </form>
 {% endif %}
 {% if account %}
+<form method="post" action="/accounts/{{ account.id }}/delete" class="danger-zone"
+      onsubmit='return confirm({{ ("Delete " ~ account.name ~ " and all its transactions? This can't be undone.")|tojson }});'>
+  <button type="submit" class="btn-sm btn-sm-danger">Delete account</button>
+</form>
 <p style="margin-top:12px;">
   <a href="/accounts">&larr; Back to accounts</a> --
   if the balance still doesn't match your statement, this opening balance
